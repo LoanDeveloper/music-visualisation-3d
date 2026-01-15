@@ -1,0 +1,78 @@
+.theme-selector {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+}
+
+.theme-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.theme-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+  font-size: 14px;
+}
+
+.theme-button:hover {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateX(5px);
+}
+
+.theme-button.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.color-preview {
+  display: flex;
+  gap: 4px;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.theme-name {
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .theme-selector {
+    top: 10px;
+    left: 10px;
+  }
+
+  .theme-button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .theme-name {
+    display: none;
+  }
+}
