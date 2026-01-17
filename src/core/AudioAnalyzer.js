@@ -59,8 +59,18 @@ class AudioAnalyzer {
    * Resume audio context if suspended (required for autoplay policies)
    */
   async resumeContext() {
-    if (this.audioContext && this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+    if (this.audioContext) {
+      console.log('[AudioAnalyzer] AudioContext state:', this.audioContext.state);
+      if (this.audioContext.state === 'suspended') {
+        try {
+          await this.audioContext.resume();
+          console.log('[AudioAnalyzer] AudioContext resumed successfully');
+        } catch (error) {
+          console.error('[AudioAnalyzer] Failed to resume AudioContext:', error);
+        }
+      }
+    } else {
+      console.warn('[AudioAnalyzer] No AudioContext to resume');
     }
   }
 
@@ -70,10 +80,18 @@ class AudioAnalyzer {
    */
   getFrequencyData() {
     if (!this.isInitialized || !this.analyser) {
+      console.warn('[AudioAnalyzer] Not initialized, returning empty array');
       return new Uint8Array(0);
     }
 
     this.analyser.getByteFrequencyData(this.dataArray);
+    
+    // Debug: log sum to see if we're getting data
+    let sum = 0;
+    for (let i = 0; i < this.dataArray.length; i++) {
+      sum += this.dataArray[i];
+    }
+    
     return this.dataArray;
   }
 

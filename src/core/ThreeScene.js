@@ -96,6 +96,18 @@ class ThreeScene {
    */
   updateFrequencyBands(frequencyBands) {
     this.currentFrequencyBands = frequencyBands;
+    
+    // Log significant audio activity
+    const total = frequencyBands.bass + frequencyBands.mid + frequencyBands.high;
+    if (total > 0.1) {
+      // Only log when there's actual audio
+      this.lastLogTime = this.lastLogTime || 0;
+      const now = Date.now();
+      if (now - this.lastLogTime > 1000) {
+        console.log('[ThreeScene] Receiving audio data:', frequencyBands);
+        this.lastLogTime = now;
+      }
+    }
   }
 
   /**

@@ -36,20 +36,34 @@ function App() {
   // Initialize audio analyzer when audio element is ready
   useEffect(() => {
     if (audioUrl && audioRef.current) {
-      initialize();
+      console.log('[App] Audio URL set, initializing analyzer...');
+      // Small delay to ensure audio element is fully mounted
+      const timer = setTimeout(() => {
+        if (audioRef.current) {
+          initialize();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [audioUrl, initialize]);
 
   // Handle audio play/pause events
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.log('[App] No audio element for event listeners');
+      return;
+    }
+
+    console.log('[App] Setting up audio event listeners');
 
     const handlePlay = () => {
+      console.log('[App] Audio play event fired');
       startAnalysis();
     };
 
     const handlePause = () => {
+      console.log('[App] Audio pause event fired');
       stopAnalysis();
     };
 
@@ -60,7 +74,7 @@ function App() {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
     };
-  }, [startAnalysis, stopAnalysis]);
+  }, [audioUrl, startAnalysis, stopAnalysis]); // Added audioUrl as dependency
 
   // Keyboard shortcuts
   useEffect(() => {

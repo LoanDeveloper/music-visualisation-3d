@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import useThreeScene from '../hooks/useThreeScene';
 
 /**
@@ -7,14 +7,9 @@ import useThreeScene from '../hooks/useThreeScene';
  */
 const VisualizerCanvas = ({ palette, sceneRef }) => {
   const canvasRef = useRef(null);
-  const localSceneRef = useThreeScene(canvasRef, palette);
-
-  // Expose scene ref to parent component
-  useEffect(() => {
-    if (sceneRef) {
-      sceneRef.current = localSceneRef.current;
-    }
-  }, [localSceneRef, sceneRef]);
+  
+  // Pass sceneRef directly to the hook - it will store the scene there
+  useThreeScene(canvasRef, palette, sceneRef);
 
   return (
     <canvas
