@@ -8,9 +8,10 @@ import { getPalette } from '../utils/colorPalettes';
  * Manages the Three.js scene, renderer, camera, and all 3D objects
  */
 class ThreeScene {
-  constructor(canvas, paletteName = 'neon') {
+  constructor(canvas, paletteName = 'neon', visualSettings = {}) {
     this.canvas = canvas;
     this.palette = getPalette(paletteName);
+    this.visualSettings = visualSettings;
 
     // Three.js core objects
     this.scene = null;
@@ -57,11 +58,12 @@ class ThreeScene {
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // Add lighting
+// Add lighting
     this.addLighting();
 
-    // Create particle system
-    this.particleSystem = new ParticleSystem(this.scene, 10000, this.palette);
+    // Create particle system with settings
+    const particleCount = this.visualSettings.particleCount || 10000;
+    this.particleSystem = new ParticleSystem(this.scene, particleCount, this.palette, this.visualSettings);
 
     // Create camera controller
     this.cameraController = new CameraController(this.camera, this.canvas);
@@ -185,7 +187,7 @@ class ThreeScene {
     console.log(`Theme updated to: ${paletteName}`);
   }
 
-  /**
+/**
    * Set particle count for performance optimization
    * @param {number} count - Number of particles
    */
@@ -193,6 +195,26 @@ class ThreeScene {
     if (this.particleSystem) {
       this.particleSystem.setParticleCount(count);
     }
+  }
+
+  /**
+   * Update visualization settings
+   * @param {Object} settings - New visualization settings
+   */
+  updateSettings(settings) {
+    this.visualSettings = settings;
+
+    if (this.particleSystem) {
+      // Update particle count if changed
+      if (settings.particleCount !== this.particleSystem.particleCount) {
+        this.particleSystem.setParticleCount(settings.particleCount);
+      }
+
+      // Update other settings
+      this.particleSystem.updateSettings(settings);
+    }
+
+    console.log('[ThreeScene] Settings updated:', settings);
   }
 
   /**
