@@ -194,29 +194,17 @@ function App() {
 
       {/* Keyboard shortcuts hint */}
       {audioUrl && (
-        <div className="fixed bottom-28 right-5 flex flex-col gap-2 z-[5]">
-          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
-            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
-              Space
-            </kbd>
+        <div className="fixed bottom-28 right-4 flex flex-col gap-1.5 z-[5]">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/80 backdrop-blur-sm rounded text-xs text-muted-foreground">
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Space</kbd>
             Play/Pause
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
-            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
-              S
-            </kbd>
-            Parametres
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
-            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
-              F
-            </kbd>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/80 backdrop-blur-sm rounded text-xs text-muted-foreground">
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">F</kbd>
             Plein ecran
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
-            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
-              1-5
-            </kbd>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/80 backdrop-blur-sm rounded text-xs text-muted-foreground">
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">1-5</kbd>
             Themes
           </div>
         </div>

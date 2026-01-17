@@ -45,18 +45,18 @@ const FullscreenButton = () => {
           <Button
             variant="outline"
             size="icon"
-            className="fixed top-5 right-5 z-10 bg-background/60 backdrop-blur-md border-border/50 hover:bg-background/80"
+            className="fixed top-4 right-4 z-10 bg-background/95 backdrop-blur-sm"
             onClick={toggleFullscreen}
           >
             {isFullscreen ? (
-              <Minimize2 className="h-5 w-5" />
+              <Minimize2 className="h-4 w-4" />
             ) : (
-              <Maximize2 className="h-5 w-5" />
+              <Maximize2 className="h-4 w-4" />
             )}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="left">
-          <p>{isFullscreen ? 'Quitter le plein ecran (F)' : 'Plein ecran (F)'}</p>
+          <p>{isFullscreen ? 'Quitter (F)' : 'Plein ecran (F)'}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

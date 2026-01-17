@@ -34,13 +34,13 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
   };
 
   return (
-    <div className="fixed top-5 left-20 z-10">
+    <div className="fixed top-4 right-16 z-10">
       <TooltipProvider delayDuration={300}>
         <ToggleGroup
           type="single"
           value={currentTheme}
           onValueChange={(value) => value && onThemeChange(value)}
-          className="bg-background/60 backdrop-blur-md border border-border/50 rounded-lg p-1"
+          className="bg-background/95 backdrop-blur-sm border rounded-lg p-1"
         >
           {paletteNames.map((name) => (
             <Tooltip key={name}>

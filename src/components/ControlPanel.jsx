@@ -71,7 +71,7 @@ const ControlPanel = ({ audioRef, audioName }) => {
   };
 
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[600px] max-w-[90%] p-5 bg-background/70 backdrop-blur-md rounded-xl border border-border z-10 shadow-lg">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[560px] max-w-[calc(100%-2rem)] p-4 bg-background/95 backdrop-blur-sm rounded-lg border z-10">
       <div className="mb-3 text-center">
         <div className="text-sm text-muted-foreground truncate">
           {audioName || 'Aucun fichier'}
@@ -82,18 +82,18 @@ const ControlPanel = ({ audioRef, audioName }) => {
         <Button
           variant="secondary"
           size="icon"
-          className="h-12 w-12 rounded-full shrink-0"
+          className="h-10 w-10 rounded-full shrink-0"
           onClick={togglePlayPause}
         >
           {isPlaying ? (
-            <Pause className="h-5 w-5" />
+            <Pause className="h-4 w-4" />
           ) : (
-            <Play className="h-5 w-5 ml-0.5" />
+            <Play className="h-4 w-4 ml-0.5" />
           )}
         </Button>
 
         <div className="flex items-center gap-3 flex-1">
-          <span className="text-xs text-muted-foreground min-w-[40px] text-center font-mono">
+          <span className="text-xs text-muted-foreground min-w-[36px] text-right font-mono tabular-nums">
             {formatTime(currentTime)}
           </span>
           <Slider
@@ -103,13 +103,13 @@ const ControlPanel = ({ audioRef, audioName }) => {
             onValueChange={handleProgressChange}
             className="flex-1"
           />
-          <span className="text-xs text-muted-foreground min-w-[40px] text-center font-mono">
+          <span className="text-xs text-muted-foreground min-w-[36px] font-mono tabular-nums">
             {formatTime(duration)}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <Volume2 className="h-4 w-4 text-muted-foreground" />
+          <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
           <Slider
             value={[volume]}
             max={1}

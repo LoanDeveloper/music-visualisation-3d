@@ -57,22 +57,22 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
 
   return (
     <Card
-      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] max-w-[90%] p-12 bg-card/50 backdrop-blur-md border-2 border-dashed border-muted-foreground/30 cursor-pointer transition-all duration-300 hover:bg-card/70 hover:border-muted-foreground/50 hover:scale-[1.02] z-[100]"
+      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] max-w-[90%] p-10 bg-background/95 backdrop-blur-sm border-2 border-dashed cursor-pointer transition-colors hover:border-muted-foreground/50 z-[100]"
       onClick={handleClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       <div className="pointer-events-none text-center">
-        <div className="flex justify-center mb-5">
-          <Music className="h-16 w-16 text-muted-foreground animate-pulse" />
+        <div className="flex justify-center mb-4">
+          <Music className="h-12 w-12 text-muted-foreground" />
         </div>
-        <h2 className="text-2xl font-semibold text-foreground mb-5">
+        <h2 className="text-xl font-semibold text-foreground mb-3">
           Visualisation 3D Musicale
         </h2>
-        <p className="text-base text-muted-foreground mb-2">
+        <p className="text-sm text-muted-foreground mb-1">
           Cliquez ou glissez-deposez un fichier audio
         </p>
-        <p className="text-sm text-muted-foreground/70">
+        <p className="text-xs text-muted-foreground/60">
           MP3, WAV, OGG
         </p>
       </div>
