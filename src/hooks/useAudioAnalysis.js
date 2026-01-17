@@ -13,20 +13,36 @@ export const useAudioAnalysis = (audioRef, sceneRef) => {
 
   // Initialize audio analyzer
   const initialize = useCallback(() => {
-    if (!audioRef.current || analyzerRef.current) return;
+    if (!audioRef.current) return;
+
+    // If analyzer already exists and is initialized, don't reinitialize
+    if (analyzerRef.current?.isInitialized) {
+      return;
+    }
 
     try {
+      // Clean up old analyzer if it exists but failed to initialize
+      if (analyzerRef.current) {
+        analyzerRef.current.destroy();
+        analyzerRef.current = null;
+      }
+
       analyzerRef.current = new AudioAnalyzer();
       analyzerRef.current.initialize(audioRef.current);
-      console.log('Audio analyzer initialized');
     } catch (error) {
       console.error('Failed to initialize audio analyzer:', error);
+      // If initialization fails, clean up
+      if (analyzerRef.current) {
+        analyzerRef.current = null;
+      }
     }
   }, [audioRef]);
 
   // Start audio analysis loop
   const startAnalysis = useCallback(() => {
-    if (!analyzerRef.current || !sceneRef.current) return;
+    if (!analyzerRef.current || !sceneRef.current) {
+      return;
+    }
 
     // Resume audio context if needed
     analyzerRef.current.resumeContext();
