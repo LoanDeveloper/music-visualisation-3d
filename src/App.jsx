@@ -19,13 +19,20 @@ const DEFAULT_SETTINGS = {
   // Particles
   particleCount: 12000,
   particleSize: 3,
+  particleShape: 'circle',
   reactiveSize: true,
   // Animation
   rotationSpeed: 0.003,
   animationSpeed: 1.0,
-  // Shape
+  // Distribution shape
   shape: 'sphere',
   expansion: 1.0,
+  // Effects
+  trails: false,
+  trailLength: 5,
+  connections: false,
+  connectionDistance: 30,
+  connectionOpacity: 0.3,
 };
 
 function App() {

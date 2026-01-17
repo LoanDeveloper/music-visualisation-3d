@@ -44,6 +44,37 @@ const SectionTitle = ({ children }) => (
 );
 
 /**
+ * Select control with label
+ */
+const SelectControl = ({ label, value, options, onChange }) => (
+  <div className="space-y-2">
+    <Label className="text-xs text-foreground/80">{label}</Label>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full bg-white/5 border-white/10 text-foreground/90 h-8 text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10">
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value} className="text-xs">
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+);
+
+/**
+ * Switch control with label
+ */
+const SwitchControl = ({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between py-1">
+    <Label className="text-xs text-foreground/80">{label}</Label>
+    <Switch checked={checked} onCheckedChange={onChange} />
+  </div>
+);
+
+/**
  * SettingsPanel component
  * Transparent floating panel with all visualization parameters
  */
@@ -54,6 +85,22 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
       [key]: value,
     });
   };
+
+  const distributionShapes = [
+    { value: 'sphere', label: 'Sphere' },
+    { value: 'spiral', label: 'Spirale / Galaxie' },
+    { value: 'atom', label: 'Atome / Moleculaire' },
+    { value: 'quantum', label: 'Quantique' },
+    { value: 'dna', label: 'ADN / Helix' },
+  ];
+
+  const particleShapes = [
+    { value: 'circle', label: 'Cercle' },
+    { value: 'square', label: 'Carre' },
+    { value: 'star', label: 'Etoile' },
+    { value: 'triangle', label: 'Triangle' },
+    { value: 'ring', label: 'Anneau' },
+  ];
 
   return (
     <div className="fixed top-4 left-4 z-50 w-64 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl">
@@ -120,6 +167,29 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
         {/* Divider */}
         <div className="h-px bg-white/10 mb-5" />
 
+        {/* Distribution Section */}
+        <div className="space-y-3 mb-5">
+          <SectionTitle>Distribution</SectionTitle>
+          
+          <SelectControl
+            label="Forme globale"
+            value={settings.shape}
+            options={distributionShapes}
+            onChange={(v) => updateSetting('shape', v)}
+          />
+          <SliderControl
+            label="Expansion"
+            value={settings.expansion}
+            min={0.5}
+            max={2}
+            step={0.1}
+            onChange={(v) => updateSetting('expansion', v)}
+          />
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/10 mb-5" />
+
         {/* Particles Section */}
         <div className="space-y-3 mb-5">
           <SectionTitle>Particules</SectionTitle>
@@ -140,20 +210,74 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             step={0.5}
             onChange={(v) => updateSetting('particleSize', v)}
           />
-          <div className="flex items-center justify-between py-1">
-            <Label className="text-xs text-foreground/80">Taille reactive</Label>
-            <Switch
-              checked={settings.reactiveSize}
-              onCheckedChange={(v) => updateSetting('reactiveSize', v)}
+          <SelectControl
+            label="Forme particule"
+            value={settings.particleShape}
+            options={particleShapes}
+            onChange={(v) => updateSetting('particleShape', v)}
+          />
+          <SwitchControl
+            label="Taille reactive"
+            checked={settings.reactiveSize}
+            onChange={(v) => updateSetting('reactiveSize', v)}
+          />
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/10 mb-5" />
+
+        {/* Effects Section */}
+        <div className="space-y-3 mb-5">
+          <SectionTitle>Effets</SectionTitle>
+          
+          <SwitchControl
+            label="Trainees"
+            checked={settings.trails}
+            onChange={(v) => updateSetting('trails', v)}
+          />
+          {settings.trails && (
+            <SliderControl
+              label="Longueur trainee"
+              value={settings.trailLength}
+              min={2}
+              max={15}
+              step={1}
+              onChange={(v) => updateSetting('trailLength', v)}
             />
-          </div>
+          )}
+          
+          <SwitchControl
+            label="Connexions"
+            checked={settings.connections}
+            onChange={(v) => updateSetting('connections', v)}
+          />
+          {settings.connections && (
+            <>
+              <SliderControl
+                label="Distance connexion"
+                value={settings.connectionDistance}
+                min={10}
+                max={80}
+                step={5}
+                onChange={(v) => updateSetting('connectionDistance', v)}
+              />
+              <SliderControl
+                label="Opacite connexion"
+                value={settings.connectionOpacity}
+                min={0.1}
+                max={0.8}
+                step={0.05}
+                onChange={(v) => updateSetting('connectionOpacity', v)}
+              />
+            </>
+          )}
         </div>
 
         {/* Divider */}
         <div className="h-px bg-white/10 mb-5" />
 
         {/* Animation Section */}
-        <div className="space-y-3 mb-5">
+        <div className="space-y-3">
           <SectionTitle>Animation</SectionTitle>
           
           <SliderControl
@@ -171,38 +295,6 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             max={2}
             step={0.1}
             onChange={(v) => updateSetting('animationSpeed', v)}
-          />
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Shape Section */}
-        <div className="space-y-3">
-          <SectionTitle>Forme</SectionTitle>
-          
-          <div className="space-y-2">
-            <Label className="text-xs text-foreground/80">Distribution</Label>
-            <Select
-              value={settings.shape}
-              onValueChange={(v) => updateSetting('shape', v)}
-            >
-              <SelectTrigger className="w-full bg-white/5 border-white/10 text-foreground/90">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-black/80 backdrop-blur-xl border-white/10">
-                <SelectItem value="sphere">Sphere</SelectItem>
-                <SelectItem value="spiral">Spirale</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <SliderControl
-            label="Expansion"
-            value={settings.expansion}
-            min={0.5}
-            max={2}
-            step={0.1}
-            onChange={(v) => updateSetting('expansion', v)}
           />
         </div>
       </div>
