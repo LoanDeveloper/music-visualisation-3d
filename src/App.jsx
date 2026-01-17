@@ -27,12 +27,17 @@ const DEFAULT_SETTINGS = {
   // Distribution shape
   shape: 'sphere',
   expansion: 1.0,
-  // Effects
+  // Trails
   trails: false,
-  trailLength: 5,
+  trailLength: 8,
+  trailDecay: 0.92,
+  trailWidth: 1,
+  // Connections
   connections: false,
   connectionDistance: 30,
   connectionOpacity: 0.3,
+  connectionMaxCount: 500,
+  connectionLineWidth: 1,
 };
 
 function App() {

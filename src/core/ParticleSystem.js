@@ -19,15 +19,23 @@ class ParticleSystem {
       animationSpeed: 1.0,
       shape: 'sphere',
       expansion: 1.0,
-      // New settings
       particleShape: 'circle',
+      // Trail settings
       trails: false,
-      trailLength: 5,
+      trailLength: 8,
+      trailDecay: 0.92,
+      trailWidth: 1,
+      // Connection settings
       connections: false,
       connectionDistance: 30,
       connectionOpacity: 0.3,
+      connectionMaxCount: 500,
+      connectionLineWidth: 1,
       ...settings,
     };
+
+    // Trail frame counter for decay timing
+    this.trailFrameCounter = 0;
 
     // Particles per group (roughly equal distribution)
     this.bassCount = Math.floor(particleCount * 0.33);
@@ -757,15 +765,16 @@ class ParticleSystem {
    */
   createTrailSystem() {
     // Use a subset of particles for trails (performance)
-    const trailParticleCount = Math.min(500, Math.floor(this.particleCount * 0.05));
+    const trailParticleCount = Math.min(800, Math.floor(this.particleCount * 0.08));
     const trailLength = this.settings.trailLength;
     
     // Each trail needs (trailLength - 1) * 2 vertices for line segments
-    const maxVertices = trailParticleCount * (trailLength - 1) * 2 * 3;
+    const maxVertices = trailParticleCount * trailLength * 2 * 3;
     
     this.trailGeometry = new THREE.BufferGeometry();
     const trailPositions = new Float32Array(maxVertices);
     const trailColors = new Float32Array(maxVertices);
+    const trailAlphas = new Float32Array(maxVertices / 3); // Per-vertex alpha
     
     this.trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     this.trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
@@ -773,8 +782,9 @@ class ParticleSystem {
     this.trailMaterial = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.7,
       blending: THREE.AdditiveBlending,
+      linewidth: this.settings.trailWidth,
     });
     
     this.trailLines = new THREE.LineSegments(this.trailGeometry, this.trailMaterial);
@@ -787,6 +797,16 @@ class ParticleSystem {
       this.trailParticleIndices.push(i * step);
     }
     
+    // Initialize trail history for all particles
+    this.trailHistory = [];
+    for (let i = 0; i < this.particleCount; i++) {
+      this.trailHistory.push([]);
+    }
+    
+    // Trail alphas for decay
+    this.trailAlphas = new Float32Array(trailParticleCount * trailLength);
+    this.trailAlphas.fill(1.0);
+    
     console.log(`[ParticleSystem] Trail system created for ${trailParticleCount} particles`);
   }
 
@@ -794,8 +814,8 @@ class ParticleSystem {
    * Create connection lines between nearby particles
    */
   createConnectionSystem() {
-    // Max connections (limited for performance)
-    const maxConnections = 2000;
+    // Max connections (configurable)
+    const maxConnections = this.settings.connectionMaxCount || 500;
     
     this.connectionGeometry = new THREE.BufferGeometry();
     const connectionPositions = new Float32Array(maxConnections * 6); // 2 vertices per line, 3 components each
@@ -809,12 +829,13 @@ class ParticleSystem {
       transparent: true,
       opacity: this.settings.connectionOpacity,
       blending: THREE.AdditiveBlending,
+      linewidth: this.settings.connectionLineWidth,
     });
     
     this.connectionLines = new THREE.LineSegments(this.connectionGeometry, this.connectionMaterial);
     this.scene.add(this.connectionLines);
     
-    console.log('[ParticleSystem] Connection system created');
+    console.log(`[ParticleSystem] Connection system created (max: ${maxConnections})`);
   }
 
   /**
@@ -972,12 +993,19 @@ class ParticleSystem {
   }
 
   /**
-   * Update trail positions
+   * Update trail positions with decay effect
    */
   updateTrails(positions, colors) {
+    if (!this.trailGeometry || !this.trailParticleIndices) return;
+    
     const trailLength = this.settings.trailLength;
+    const trailDecay = this.settings.trailDecay;
     const trailPositions = this.trailGeometry.attributes.position.array;
     const trailColors = this.trailGeometry.attributes.color.array;
+    
+    // Increment frame counter - only add new positions every few frames for smoother trails
+    this.trailFrameCounter = (this.trailFrameCounter || 0) + 1;
+    const addNewPosition = this.trailFrameCounter % 2 === 0; // Add every 2 frames
     
     let vertexIndex = 0;
     
@@ -985,12 +1013,32 @@ class ParticleSystem {
       const particleIndex = this.trailParticleIndices[i];
       const i3 = particleIndex * 3;
       
-      // Add current position to history
+      // Get or create history array
+      if (!this.trailHistory[particleIndex]) {
+        this.trailHistory[particleIndex] = [];
+      }
       const history = this.trailHistory[particleIndex];
-      history.unshift([positions[i3], positions[i3 + 1], positions[i3 + 2]]);
+      
+      // Add current position to history (with timestamp for decay)
+      if (addNewPosition) {
+        history.unshift({
+          pos: [positions[i3], positions[i3 + 1], positions[i3 + 2]],
+          alpha: 1.0,
+        });
+      }
+      
+      // Apply decay to all trail points
+      for (let j = 0; j < history.length; j++) {
+        history[j].alpha *= trailDecay;
+      }
+      
+      // Remove points that are too faded
+      while (history.length > 0 && history[history.length - 1].alpha < 0.05) {
+        history.pop();
+      }
       
       // Limit history length
-      if (history.length > trailLength) {
+      while (history.length > trailLength) {
         history.pop();
       }
       
@@ -998,27 +1046,35 @@ class ParticleSystem {
       for (let j = 0; j < history.length - 1; j++) {
         const p1 = history[j];
         const p2 = history[j + 1];
-        const alpha = 1 - j / trailLength;
         
-        trailPositions[vertexIndex] = p1[0];
-        trailPositions[vertexIndex + 1] = p1[1];
-        trailPositions[vertexIndex + 2] = p1[2];
+        // Skip if positions are the same (no movement)
+        const dx = p1.pos[0] - p2.pos[0];
+        const dy = p1.pos[1] - p2.pos[1];
+        const dz = p1.pos[2] - p2.pos[2];
+        if (dx * dx + dy * dy + dz * dz < 0.01) continue;
         
-        trailPositions[vertexIndex + 3] = p2[0];
-        trailPositions[vertexIndex + 4] = p2[1];
-        trailPositions[vertexIndex + 5] = p2[2];
+        trailPositions[vertexIndex] = p1.pos[0];
+        trailPositions[vertexIndex + 1] = p1.pos[1];
+        trailPositions[vertexIndex + 2] = p1.pos[2];
         
-        // Fade color along trail
+        trailPositions[vertexIndex + 3] = p2.pos[0];
+        trailPositions[vertexIndex + 4] = p2.pos[1];
+        trailPositions[vertexIndex + 5] = p2.pos[2];
+        
+        // Get color based on particle group with alpha decay
         const color = this.particleGroups[particleIndex] === 0 ? this.bandColors.bass :
                      (this.particleGroups[particleIndex] === 1 ? this.bandColors.mid : this.bandColors.high);
         
-        trailColors[vertexIndex] = color[0] * alpha;
-        trailColors[vertexIndex + 1] = color[1] * alpha;
-        trailColors[vertexIndex + 2] = color[2] * alpha;
+        const alpha1 = p1.alpha;
+        const alpha2 = p2.alpha;
         
-        trailColors[vertexIndex + 3] = color[0] * alpha * 0.5;
-        trailColors[vertexIndex + 4] = color[1] * alpha * 0.5;
-        trailColors[vertexIndex + 5] = color[2] * alpha * 0.5;
+        trailColors[vertexIndex] = color[0] * alpha1;
+        trailColors[vertexIndex + 1] = color[1] * alpha1;
+        trailColors[vertexIndex + 2] = color[2] * alpha1;
+        
+        trailColors[vertexIndex + 3] = color[0] * alpha2;
+        trailColors[vertexIndex + 4] = color[1] * alpha2;
+        trailColors[vertexIndex + 5] = color[2] * alpha2;
         
         vertexIndex += 6;
       }
@@ -1038,24 +1094,28 @@ class ParticleSystem {
    * Update connection lines between nearby particles
    */
   updateConnections(positions, colors, energy) {
+    if (!this.connectionGeometry) return;
+    
     const connectionPositions = this.connectionGeometry.attributes.position.array;
     const connectionColors = this.connectionGeometry.attributes.color.array;
-    const maxDist = this.settings.connectionDistance * (1 + energy * 0.5);
+    const maxDist = this.settings.connectionDistance * (1 + energy * 0.3);
     const maxDistSq = maxDist * maxDist;
+    const maxConnections = this.settings.connectionMaxCount || 500;
     
     let lineIndex = 0;
-    const maxConnections = connectionPositions.length / 6;
     
-    // Only check a subset of particles for performance
-    const checkCount = Math.min(200, this.particleCount);
-    const step = Math.floor(this.particleCount / checkCount);
+    // Calculate check count based on max connections for performance
+    const checkCount = Math.min(Math.ceil(Math.sqrt(maxConnections * 2)), 300, this.particleCount);
+    const step = Math.max(1, Math.floor(this.particleCount / checkCount));
     
     for (let i = 0; i < checkCount && lineIndex < maxConnections; i++) {
       const idx1 = i * step;
+      if (idx1 >= this.particleCount) break;
       const i3_1 = idx1 * 3;
       
       for (let j = i + 1; j < checkCount && lineIndex < maxConnections; j++) {
         const idx2 = j * step;
+        if (idx2 >= this.particleCount) break;
         const i3_2 = idx2 * 3;
         
         const dx = positions[i3_1] - positions[i3_2];

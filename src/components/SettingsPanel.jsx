@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -9,7 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Save, Trash2 } from 'lucide-react';
+import {
+  getAllPresets,
+  getPreset,
+  saveCustomPreset,
+  deleteCustomPreset,
+  BUILT_IN_PRESETS,
+} from '@/utils/presets';
 
 /**
  * Slider control with label and value display
@@ -79,11 +87,43 @@ const SwitchControl = ({ label, checked, onChange }) => (
  * Transparent floating panel with all visualization parameters
  */
 const SettingsPanel = ({ settings, onSettingsChange }) => {
+  const [selectedPreset, setSelectedPreset] = useState('default');
+  const [customPresetName, setCustomPresetName] = useState('');
+  const [showSaveInput, setShowSaveInput] = useState(false);
+  const [presets, setPresets] = useState(getAllPresets());
+
   const updateSetting = (key, value) => {
     onSettingsChange({
       ...settings,
       [key]: value,
     });
+  };
+
+  const handlePresetChange = (presetName) => {
+    setSelectedPreset(presetName);
+    const preset = getPreset(presetName);
+    if (preset) {
+      onSettingsChange({ ...settings, ...preset.settings });
+    }
+  };
+
+  const handleSavePreset = () => {
+    if (customPresetName.trim()) {
+      saveCustomPreset(customPresetName.trim(), settings);
+      setPresets(getAllPresets());
+      setCustomPresetName('');
+      setShowSaveInput(false);
+    }
+  };
+
+  const handleDeletePreset = (name) => {
+    if (!BUILT_IN_PRESETS[name]) {
+      deleteCustomPreset(name);
+      setPresets(getAllPresets());
+      if (selectedPreset === name) {
+        setSelectedPreset('default');
+      }
+    }
   };
 
   const distributionShapes = [
@@ -102,6 +142,12 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
     { value: 'ring', label: 'Anneau' },
   ];
 
+  const presetOptions = Object.entries(presets).map(([key, preset]) => ({
+    value: key,
+    label: preset.name,
+    isBuiltIn: !!BUILT_IN_PRESETS[key],
+  }));
+
   return (
     <div className="fixed top-4 left-4 z-50 w-64 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl">
       <div className="p-5">
@@ -117,6 +163,77 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             <RotateCcw className="h-3.5 w-3.5" />
           </Button>
         </div>
+
+        {/* Presets Section */}
+        <div className="space-y-3 mb-5">
+          <SectionTitle>Presets</SectionTitle>
+          
+          <Select value={selectedPreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-full bg-white/5 border-white/10 text-foreground/90 h-8 text-xs">
+              <SelectValue placeholder="Choisir un preset" />
+            </SelectTrigger>
+            <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10">
+              {presetOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  <div className="flex items-center justify-between w-full">
+                    <span>{opt.label}</span>
+                    {!opt.isBuiltIn && (
+                      <span className="text-[9px] text-foreground/40 ml-2">custom</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Save preset */}
+          {showSaveInput ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customPresetName}
+                onChange={(e) => setCustomPresetName(e.target.value)}
+                placeholder="Nom du preset"
+                className="flex-1 h-7 px-2 text-xs bg-white/5 border border-white/10 rounded text-foreground/90 placeholder:text-foreground/30"
+                onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-foreground/50 hover:text-foreground hover:bg-white/10"
+                onClick={handleSavePreset}
+              >
+                <Save className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs bg-white/5 border-white/10 hover:bg-white/10"
+              onClick={() => setShowSaveInput(true)}
+            >
+              <Save className="h-3 w-3 mr-1.5" />
+              Sauvegarder preset
+            </Button>
+          )}
+
+          {/* Delete custom preset */}
+          {!BUILT_IN_PRESETS[selectedPreset] && selectedPreset && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full h-7 text-xs text-red-400/70 hover:text-red-400 hover:bg-red-400/10"
+              onClick={() => handleDeletePreset(selectedPreset)}
+            >
+              <Trash2 className="h-3 w-3 mr-1.5" />
+              Supprimer preset
+            </Button>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/10 mb-5" />
 
         {/* Audio Section */}
         <div className="space-y-3 mb-5">
@@ -226,48 +343,90 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
         {/* Divider */}
         <div className="h-px bg-white/10 mb-5" />
 
-        {/* Effects Section */}
+        {/* Trails Section */}
         <div className="space-y-3 mb-5">
-          <SectionTitle>Effets</SectionTitle>
+          <SectionTitle>Trainees</SectionTitle>
           
           <SwitchControl
-            label="Trainees"
+            label="Activer trainees"
             checked={settings.trails}
             onChange={(v) => updateSetting('trails', v)}
           />
           {settings.trails && (
-            <SliderControl
-              label="Longueur trainee"
-              value={settings.trailLength}
-              min={2}
-              max={15}
-              step={1}
-              onChange={(v) => updateSetting('trailLength', v)}
-            />
+            <>
+              <SliderControl
+                label="Longueur"
+                value={settings.trailLength}
+                min={3}
+                max={20}
+                step={1}
+                onChange={(v) => updateSetting('trailLength', v)}
+              />
+              <SliderControl
+                label="Persistance"
+                value={settings.trailDecay}
+                min={0.8}
+                max={0.98}
+                step={0.01}
+                onChange={(v) => updateSetting('trailDecay', v)}
+              />
+              <SliderControl
+                label="Epaisseur"
+                value={settings.trailWidth}
+                min={0.5}
+                max={3}
+                step={0.5}
+                onChange={(v) => updateSetting('trailWidth', v)}
+              />
+            </>
           )}
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/10 mb-5" />
+
+        {/* Connections Section */}
+        <div className="space-y-3 mb-5">
+          <SectionTitle>Connexions</SectionTitle>
           
           <SwitchControl
-            label="Connexions"
+            label="Activer connexions"
             checked={settings.connections}
             onChange={(v) => updateSetting('connections', v)}
           />
           {settings.connections && (
             <>
               <SliderControl
-                label="Distance connexion"
+                label="Distance max"
                 value={settings.connectionDistance}
                 min={10}
-                max={80}
+                max={100}
                 step={5}
                 onChange={(v) => updateSetting('connectionDistance', v)}
               />
               <SliderControl
-                label="Opacite connexion"
+                label="Opacite"
                 value={settings.connectionOpacity}
                 min={0.1}
                 max={0.8}
                 step={0.05}
                 onChange={(v) => updateSetting('connectionOpacity', v)}
+              />
+              <SliderControl
+                label="Nombre max"
+                value={settings.connectionMaxCount}
+                min={100}
+                max={2000}
+                step={100}
+                onChange={(v) => updateSetting('connectionMaxCount', v)}
+              />
+              <SliderControl
+                label="Epaisseur ligne"
+                value={settings.connectionLineWidth}
+                min={0.5}
+                max={3}
+                step={0.5}
+                onChange={(v) => updateSetting('connectionLineWidth', v)}
               />
             </>
           )}
