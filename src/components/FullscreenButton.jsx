@@ -45,7 +45,7 @@ const FullscreenButton = () => {
           <Button
             variant="outline"
             size="icon"
-            className="fixed top-4 right-4 z-10 bg-card backdrop-blur-md border-border/50"
+            className="fixed top-4 right-4 z-10 bg-black/40 backdrop-blur-xl border-white/10 hover:bg-white/10"
             onClick={toggleFullscreen}
           >
             {isFullscreen ? (

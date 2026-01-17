@@ -37,13 +37,13 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
   return (
     <div className="fixed top-4 right-16 z-10">
       <Select value={currentTheme} onValueChange={onThemeChange}>
-        <SelectTrigger className="w-40 bg-card backdrop-blur-md border-border/50">
+        <SelectTrigger className="w-40 bg-black/40 backdrop-blur-xl border-white/10 text-foreground/90">
           <div className="flex items-center gap-2">
             <ColorPreview palette={palettes[currentTheme]} />
             <SelectValue />
           </div>
         </SelectTrigger>
-        <SelectContent className="bg-card/95 backdrop-blur-md border-border/50">
+        <SelectContent className="bg-black/80 backdrop-blur-xl border-white/10">
           {paletteNames.map((name) => (
             <SelectItem key={name} value={name}>
               <div className="flex items-center gap-3">
