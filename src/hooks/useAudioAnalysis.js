@@ -14,11 +14,14 @@ export const useAudioAnalysis = (audioRef, sceneRef) => {
 
   // Initialize audio analyzer
   const initialize = useCallback(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      console.log('[AudioAnalysis] No audio element, skipping init');
+      return;
+    }
 
     // If analyzer already exists and is initialized, don't reinitialize
     if (analyzerRef.current?.isInitialized) {
->>>>>>> e253cf7f4006804768e623f3818c5c852cb0a085
+      console.log('[AudioAnalysis] Already initialized');
       return;
     }
 
@@ -31,24 +34,18 @@ export const useAudioAnalysis = (audioRef, sceneRef) => {
 
       analyzerRef.current = new AudioAnalyzer();
       analyzerRef.current.initialize(audioRef.current);
-<<<<<<< HEAD
       console.log('[AudioAnalysis] Audio analyzer initialized successfully');
     } catch (error) {
       console.error('[AudioAnalysis] Failed to initialize audio analyzer:', error);
-=======
-    } catch (error) {
-      console.error('Failed to initialize audio analyzer:', error);
       // If initialization fails, clean up
       if (analyzerRef.current) {
         analyzerRef.current = null;
       }
->>>>>>> e253cf7f4006804768e623f3818c5c852cb0a085
     }
   }, []); // No deps - we read refs directly
 
   // Start audio analysis loop
   const startAnalysis = useCallback(() => {
-<<<<<<< HEAD
     console.log('[AudioAnalysis] startAnalysis called');
     console.log('[AudioAnalysis] analyzerRef.current:', !!analyzerRef.current);
     console.log('[AudioAnalysis] sceneRef.current:', !!sceneRef.current);
@@ -77,11 +74,6 @@ export const useAudioAnalysis = (audioRef, sceneRef) => {
         return;
       }
     }
-=======
-    if (!analyzerRef.current || !sceneRef.current) {
-      return;
-    }
->>>>>>> e253cf7f4006804768e623f3818c5c852cb0a085
 
     // Resume audio context if needed (important for browser autoplay policy)
     analyzerRef.current.resumeContext();
@@ -91,7 +83,6 @@ export const useAudioAnalysis = (audioRef, sceneRef) => {
     let frameCount = 0;
     const updateAudioData = () => {
       if (!isRunningRef.current) {
-        console.log('[AudioAnalysis] Loop stopped');
         return;
       }
       
