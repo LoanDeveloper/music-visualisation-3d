@@ -1,23 +1,56 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import VisualizerCanvas from './components/VisualizerCanvas';
 import AudioUploader from './components/AudioUploader';
 import ControlPanel from './components/ControlPanel';
 import ThemeSelector from './components/ThemeSelector';
 import FullscreenButton from './components/FullscreenButton';
+import SettingsPanel from './components/SettingsPanel';
 import useAudioAnalysis from './hooks/useAudioAnalysis';
 import './App.css';
+
+// Default visualization settings
+const DEFAULT_SETTINGS = {
+  // Audio
+  sensitivity: 1.0,
+  bassIntensity: 1.0,
+  midIntensity: 1.0,
+  highIntensity: 1.0,
+  smoothing: 0.7,
+  // Particles
+  particleCount: 10000,
+  particleSize: 2.5,
+  reactiveSize: true,
+  // Animation
+  rotationSpeed: 0.002,
+  animationSpeed: 1.0,
+  // Shape
+  shape: 'sphere',
+  expansion: 1.0,
+};
 
 function App() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioName, setAudioName] = useState('');
   const [currentTheme, setCurrentTheme] = useState('neon');
+  const [visualSettings, setVisualSettings] = useState(DEFAULT_SETTINGS);
 
   const audioRef = useRef(null);
   const sceneRef = useRef(null);
 
+  // Handle settings change
+  const handleSettingsChange = useCallback((newSettings) => {
+    if (newSettings === null) {
+      // Reset to defaults
+      setVisualSettings(DEFAULT_SETTINGS);
+    } else {
+      setVisualSettings(newSettings);
+    }
+  }, []);
+
   const { initialize, startAnalysis, stopAnalysis, reset } = useAudioAnalysis(
     audioRef,
-    sceneRef
+    sceneRef,
+    visualSettings
   );
 
   // Handle audio file selection
@@ -125,15 +158,25 @@ function App() {
     };
   }, []);
 
-  return (
+return (
     <div className="app">
       {/* Three.js Canvas */}
-      <VisualizerCanvas palette={currentTheme} sceneRef={sceneRef} />
+      <VisualizerCanvas 
+        palette={currentTheme} 
+        sceneRef={sceneRef} 
+        visualSettings={visualSettings}
+      />
 
       {/* Audio element (hidden) */}
       {audioUrl && (
         <audio ref={audioRef} src={audioUrl} style={{ display: 'none' }} />
       )}
+
+      {/* Settings Panel */}
+      <SettingsPanel 
+        settings={visualSettings} 
+        onSettingsChange={handleSettingsChange} 
+      />
 
       {/* UI Overlay */}
       <AudioUploader onFileSelect={handleFileSelect} hasAudio={!!audioUrl} />
