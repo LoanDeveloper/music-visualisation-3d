@@ -1,26 +1,18 @@
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { RotateCcw } from 'lucide-react';
 
 /**
- * Slider control with label and value display
+ * Compact slider control
  */
 const SliderControl = ({ label, value, min, max, step, onChange }) => {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <Label className="text-sm">{label}</Label>
-        <span className="text-sm text-muted-foreground font-mono tabular-nums">
-          {value.toFixed(step < 1 ? 2 : 0)}
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        <span className="text-xs text-muted-foreground/70 font-mono tabular-nums">
+          {value.toFixed(step < 1 ? 1 : 0)}
         </span>
       </div>
       <Slider
@@ -29,23 +21,15 @@ const SliderControl = ({ label, value, min, max, step, onChange }) => {
         max={max}
         step={step}
         onValueChange={(v) => onChange(v[0])}
+        className="h-1"
       />
     </div>
   );
 };
 
 /**
- * Section header
- */
-const SectionTitle = ({ children }) => (
-  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
-    {children}
-  </h3>
-);
-
-/**
  * SettingsPanel component
- * Always visible panel with visualization parameters
+ * Minimal floating panel with essential controls
  */
 const SettingsPanel = ({ settings, onSettingsChange }) => {
   const updateSetting = (key, value) => {
@@ -56,14 +40,23 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
   };
 
   return (
-    <div className="fixed top-4 left-4 z-50 w-72 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border bg-background/95 backdrop-blur-sm">
-      <div className="p-4">
-        <h2 className="text-base font-semibold mb-4">Parametres</h2>
+    <div className="fixed top-4 left-4 z-50 w-56 rounded-xl border border-border/50 bg-card backdrop-blur-md shadow-lg">
+      <div className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Parametres</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={() => onSettingsChange(null)}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </Button>
+        </div>
 
-        {/* Audio Section */}
-        <div className="space-y-4">
-          <SectionTitle>Audio</SectionTitle>
-          
+        {/* Intensity controls */}
+        <div className="space-y-3">
           <SliderControl
             label="Sensibilite"
             value={settings.sensitivity}
@@ -96,24 +89,15 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             step={0.1}
             onChange={(v) => updateSetting('highIntensity', v)}
           />
-          <SliderControl
-            label="Lissage"
-            value={settings.smoothing}
-            min={0.1}
-            max={0.95}
-            step={0.05}
-            onChange={(v) => updateSetting('smoothing', v)}
-          />
         </div>
 
-        <Separator className="my-6" />
+        {/* Divider */}
+        <div className="h-px bg-border/50" />
 
-        {/* Particles Section */}
-        <div className="space-y-4">
-          <SectionTitle>Particules</SectionTitle>
-          
+        {/* Visual controls */}
+        <div className="space-y-3">
           <SliderControl
-            label="Nombre"
+            label="Particules"
             value={settings.particleCount}
             min={1000}
             max={25000}
@@ -124,85 +108,11 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             label="Taille"
             value={settings.particleSize}
             min={1}
-            max={8}
+            max={6}
             step={0.5}
             onChange={(v) => updateSetting('particleSize', v)}
           />
-          <div className="flex items-center justify-between py-1">
-            <Label className="text-sm">Taille reactive</Label>
-            <Switch
-              checked={settings.reactiveSize}
-              onCheckedChange={(v) => updateSetting('reactiveSize', v)}
-            />
-          </div>
         </div>
-
-        <Separator className="my-6" />
-
-        {/* Animation Section */}
-        <div className="space-y-4">
-          <SectionTitle>Animation</SectionTitle>
-          
-          <SliderControl
-            label="Rotation"
-            value={settings.rotationSpeed}
-            min={0}
-            max={0.05}
-            step={0.001}
-            onChange={(v) => updateSetting('rotationSpeed', v)}
-          />
-          <SliderControl
-            label="Vitesse"
-            value={settings.animationSpeed}
-            min={0.5}
-            max={2}
-            step={0.1}
-            onChange={(v) => updateSetting('animationSpeed', v)}
-          />
-        </div>
-
-        <Separator className="my-6" />
-
-        {/* Shape Section */}
-        <div className="space-y-4">
-          <SectionTitle>Forme</SectionTitle>
-          
-          <div className="space-y-3">
-            <Label className="text-sm">Distribution</Label>
-            <Select
-              value={settings.shape}
-              onValueChange={(v) => updateSetting('shape', v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sphere">Sphere</SelectItem>
-                <SelectItem value="spiral">Spirale</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <SliderControl
-            label="Expansion"
-            value={settings.expansion}
-            min={0.5}
-            max={2}
-            step={0.1}
-            onChange={(v) => updateSetting('expansion', v)}
-          />
-        </div>
-
-        <Separator className="my-6" />
-
-        {/* Reset button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => onSettingsChange(null)}
-        >
-          Reinitialiser
-        </Button>
       </div>
     </div>
   );

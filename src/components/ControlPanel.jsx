@@ -71,7 +71,7 @@ const ControlPanel = ({ audioRef, audioName }) => {
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[560px] max-w-[calc(100%-2rem)] p-4 bg-background/95 backdrop-blur-sm rounded-lg border z-10">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[560px] max-w-[calc(100%-2rem)] p-4 bg-card backdrop-blur-md rounded-xl border border-border/50 shadow-lg z-10">
       <div className="mb-3 text-center">
         <div className="text-sm text-muted-foreground truncate">
           {audioName || 'Aucun fichier'}

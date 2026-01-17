@@ -57,7 +57,7 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
 
   return (
     <Card
-      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] max-w-[90%] p-10 bg-background/95 backdrop-blur-sm border-2 border-dashed cursor-pointer transition-colors hover:border-muted-foreground/50 z-[100]"
+      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] max-w-[90%] p-10 bg-card backdrop-blur-md border border-dashed border-border/50 cursor-pointer transition-all hover:border-muted-foreground/50 hover:bg-card/80 z-[100]"
       onClick={handleClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}

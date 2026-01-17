@@ -8,20 +8,20 @@ import SettingsPanel from '@/components/SettingsPanel';
 import useAudioAnalysis from '@/hooks/useAudioAnalysis';
 import './App.css';
 
-// Default visualization settings
+// Default visualization settings - balanced for all frequencies
 const DEFAULT_SETTINGS = {
-  // Audio
-  sensitivity: 1.0,
-  bassIntensity: 1.0,
-  midIntensity: 1.0,
-  highIntensity: 1.0,
-  smoothing: 0.7,
+  // Audio - higher sensitivity and balanced frequency response
+  sensitivity: 1.5,
+  bassIntensity: 1.4,
+  midIntensity: 1.6,
+  highIntensity: 1.8,
+  smoothing: 0.65,
   // Particles
-  particleCount: 10000,
-  particleSize: 2.5,
+  particleCount: 12000,
+  particleSize: 3,
   reactiveSize: true,
   // Animation
-  rotationSpeed: 0.002,
+  rotationSpeed: 0.003,
   animationSpeed: 1.0,
   // Shape
   shape: 'sphere',
@@ -195,16 +195,16 @@ function App() {
       {/* Keyboard shortcuts hint */}
       {audioUrl && (
         <div className="fixed bottom-28 right-4 flex flex-col gap-1.5 z-[5]">
-          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/80 backdrop-blur-sm rounded text-xs text-muted-foreground">
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Space</kbd>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-card backdrop-blur-md rounded-lg text-xs text-muted-foreground border border-border/30">
+            <kbd className="px-1.5 py-0.5 bg-muted/50 rounded text-[10px] font-mono">Space</kbd>
             Play/Pause
           </div>
-          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/80 backdrop-blur-sm rounded text-xs text-muted-foreground">
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">F</kbd>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-card backdrop-blur-md rounded-lg text-xs text-muted-foreground border border-border/30">
+            <kbd className="px-1.5 py-0.5 bg-muted/50 rounded text-[10px] font-mono">F</kbd>
             Plein ecran
           </div>
-          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/80 backdrop-blur-sm rounded text-xs text-muted-foreground">
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">1-5</kbd>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-card backdrop-blur-md rounded-lg text-xs text-muted-foreground border border-border/30">
+            <kbd className="px-1.5 py-0.5 bg-muted/50 rounded text-[10px] font-mono">1-5</kbd>
             Themes
           </div>
         </div>
