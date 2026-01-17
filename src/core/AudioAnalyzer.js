@@ -1,8 +1,10 @@
 import { getFrequencyBands, resetSmoothing } from '../utils/audioProcessor';
+import { analyzeAudio, resetAdvancedAnalysis } from '../utils/advancedAudioProcessor';
 
 /**
  * AudioAnalyzer class
  * Wrapper for Web Audio API to analyze audio frequencies in real-time
+ * Includes advanced spectral analysis features
  */
 class AudioAnalyzer {
   constructor() {
@@ -12,6 +14,13 @@ class AudioAnalyzer {
     this.source = null;
     this.audioElement = null;
     this.isInitialized = false;
+    
+    // Advanced analysis options
+    this.advancedOptions = {
+      beatSensitivity: 1.0,
+      onsetSensitivity: 1.0,
+      enableChroma: false,
+    };
   }
 
   /**
@@ -105,6 +114,38 @@ class AudioAnalyzer {
   }
 
   /**
+   * Get advanced audio analysis metrics
+   * @returns {Object} Advanced metrics (spectral centroid, flux, beat, etc.)
+   */
+  getAdvancedAnalysis() {
+    const frequencyData = this.getFrequencyData();
+    return analyzeAudio(frequencyData, this.advancedOptions);
+  }
+
+  /**
+   * Get both basic frequency bands and advanced analysis in one call
+   * @returns {Object} Combined audio analysis data
+   */
+  getFullAnalysis() {
+    const frequencyData = this.getFrequencyData();
+    const bands = getFrequencyBands(frequencyData);
+    const advanced = analyzeAudio(frequencyData, this.advancedOptions);
+    
+    return {
+      ...bands,
+      ...advanced,
+    };
+  }
+
+  /**
+   * Update advanced analysis options
+   * @param {Object} options - Analysis options
+   */
+  setAdvancedOptions(options) {
+    this.advancedOptions = { ...this.advancedOptions, ...options };
+  }
+
+  /**
    * Check if audio is currently playing
    * @returns {boolean}
    */
@@ -117,6 +158,7 @@ class AudioAnalyzer {
    */
   reset() {
     resetSmoothing();
+    resetAdvancedAnalysis();
   }
 
   /**
@@ -142,6 +184,7 @@ class AudioAnalyzer {
     this.audioElement = null;
     this.isInitialized = false;
     resetSmoothing();
+    resetAdvancedAnalysis();
 
     console.log('AudioAnalyzer destroyed');
   }

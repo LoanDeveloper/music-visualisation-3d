@@ -435,6 +435,83 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
         {/* Divider */}
         <div className="h-px bg-white/10 mb-5" />
 
+        {/* Advanced Analysis Section */}
+        <div className="space-y-3 mb-5">
+          <SectionTitle>Analyse Avancee</SectionTitle>
+          
+          <SwitchControl
+            label="Reaction au beat"
+            checked={settings.beatReactive}
+            onChange={(v) => updateSetting('beatReactive', v)}
+          />
+          {settings.beatReactive && (
+            <>
+              <SliderControl
+                label="Intensite beat"
+                value={settings.beatPulseIntensity}
+                min={0.2}
+                max={2}
+                step={0.1}
+                onChange={(v) => updateSetting('beatPulseIntensity', v)}
+              />
+              <SliderControl
+                label="Sensibilite beat"
+                value={settings.beatSensitivity}
+                min={0.5}
+                max={2}
+                step={0.1}
+                onChange={(v) => updateSetting('beatSensitivity', v)}
+              />
+            </>
+          )}
+          
+          <SwitchControl
+            label="Flash sur onsets"
+            checked={settings.onsetFlash}
+            onChange={(v) => updateSetting('onsetFlash', v)}
+          />
+          {settings.onsetFlash && (
+            <SliderControl
+              label="Sensibilite onset"
+              value={settings.onsetSensitivity}
+              min={0.5}
+              max={2}
+              step={0.1}
+              onChange={(v) => updateSetting('onsetSensitivity', v)}
+            />
+          )}
+          
+          <SwitchControl
+            label="Echelle RMS"
+            checked={settings.rmsScale}
+            onChange={(v) => updateSetting('rmsScale', v)}
+          />
+          
+          <SelectControl
+            label="Mode couleur spectral"
+            value={settings.spectralColorMode}
+            options={[
+              { value: 'none', label: 'Desactive' },
+              { value: 'centroid', label: 'Centroide (brillance)' },
+              { value: 'chroma', label: 'Chroma (notes)' },
+            ]}
+            onChange={(v) => updateSetting('spectralColorMode', v)}
+          />
+          {settings.spectralColorMode !== 'none' && (
+            <SliderControl
+              label="Intensite couleur"
+              value={settings.spectralColorIntensity}
+              min={0.1}
+              max={1}
+              step={0.1}
+              onChange={(v) => updateSetting('spectralColorIntensity', v)}
+            />
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/10 mb-5" />
+
         {/* Animation Section */}
         <div className="space-y-3">
           <SectionTitle>Animation</SectionTitle>

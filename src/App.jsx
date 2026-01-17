@@ -38,6 +38,16 @@ const DEFAULT_SETTINGS = {
   connectionOpacity: 0.3,
   connectionMaxCount: 500,
   connectionLineWidth: 1,
+  // Advanced Analysis
+  beatReactive: true,
+  beatPulseIntensity: 1.0,
+  beatSensitivity: 1.0,
+  onsetFlash: true,
+  onsetSensitivity: 1.0,
+  rmsScale: true,
+  spectralColorMode: 'none',
+  spectralColorIntensity: 0.5,
+  enableChroma: false,
 };
 
 function App() {

@@ -3,6 +3,7 @@ import AudioAnalyzer from '../core/AudioAnalyzer';
 
 /**
  * Custom hook for managing audio analysis
+ * Includes both basic frequency bands and advanced spectral analysis
  * @param {React.RefObject} audioRef - Reference to audio element
  * @param {React.RefObject} sceneRef - Reference to ThreeScene instance
  * @param {Object} visualSettings - Visualization settings
@@ -17,6 +18,15 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
   // Keep settings ref updated
   useEffect(() => {
     settingsRef.current = visualSettings;
+    
+    // Update analyzer advanced options when settings change
+    if (analyzerRef.current) {
+      analyzerRef.current.setAdvancedOptions({
+        beatSensitivity: visualSettings.beatSensitivity || 1.0,
+        onsetSensitivity: visualSettings.onsetSensitivity || 1.0,
+        enableChroma: visualSettings.enableChroma || false,
+      });
+    }
   }, [visualSettings]);
 
   // Initialize audio analyzer
@@ -99,23 +109,51 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
         return;
       }
 
-      // Get frequency bands
-      const frequencyBands = analyzerRef.current.getFrequencyBands();
-
-      // Apply sensitivity settings
+      // Get full analysis including advanced metrics
+      const fullAnalysis = analyzerRef.current.getFullAnalysis();
+      
+      // Apply sensitivity settings to basic frequency bands
       const settings = settingsRef.current;
       const adjustedBands = {
-        bass: frequencyBands.bass * settings.sensitivity * settings.bassIntensity,
-        mid: frequencyBands.mid * settings.sensitivity * settings.midIntensity,
-        high: frequencyBands.high * settings.sensitivity * settings.highIntensity,
+        // Basic frequency bands with intensity modifiers
+        bass: fullAnalysis.bass * settings.sensitivity * settings.bassIntensity,
+        mid: fullAnalysis.mid * settings.sensitivity * settings.midIntensity,
+        high: fullAnalysis.high * settings.sensitivity * settings.highIntensity,
+        
+        // Advanced spectral features (already normalized 0-1)
+        spectralCentroid: fullAnalysis.spectralCentroid,
+        spectralFlux: fullAnalysis.spectralFlux,
+        spectralRolloff: fullAnalysis.spectralRolloff,
+        zeroCrossingRate: fullAnalysis.zeroCrossingRate,
+        rms: fullAnalysis.rms,
+        
+        // Beat detection
+        isBeat: fullAnalysis.isBeat,
+        beatIntensity: fullAnalysis.beatIntensity,
+        bpm: fullAnalysis.bpm,
+        bassEnergy: fullAnalysis.bassEnergy,
+        
+        // Onset detection  
+        isOnset: fullAnalysis.isOnset,
+        onsetIntensity: fullAnalysis.onsetIntensity,
+        
+        // Optional chroma features
+        chroma: fullAnalysis.chroma,
+        dominantPitch: fullAnalysis.dominantPitch,
       };
 
       // Log every 120 frames (~2 seconds at 60fps)
       frameCount++;
       if (frameCount % 120 === 0) {
         const hasData = adjustedBands.bass > 0 || adjustedBands.mid > 0 || adjustedBands.high > 0;
-        console.log('[AudioAnalysis] Frequency bands:', adjustedBands, '| Has data:', hasData);
-        console.log('[AudioAnalysis] Scene available:', !!sceneRef.current);
+        console.log('[AudioAnalysis] Frequency bands:', {
+          bass: adjustedBands.bass.toFixed(2),
+          mid: adjustedBands.mid.toFixed(2),
+          high: adjustedBands.high.toFixed(2),
+          centroid: adjustedBands.spectralCentroid.toFixed(2),
+          rms: adjustedBands.rms.toFixed(2),
+          bpm: adjustedBands.bpm,
+        });
       }
 
       // Update scene with frequency data - read ref directly each time

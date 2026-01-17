@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { lerpColor } from '../utils/colorPalettes';
+import { centroidToColor, pitchClassToColor } from '../utils/advancedAudioProcessor';
 
 /**
  * ParticleSystem class
  * Manages particles with various shapes, trails, and connections
+ * Supports advanced audio analysis for enhanced reactivity
  */
 class ParticleSystem {
   constructor(scene, particleCount = 10000, palette, settings = {}) {
@@ -31,11 +33,26 @@ class ParticleSystem {
       connectionOpacity: 0.3,
       connectionMaxCount: 500,
       connectionLineWidth: 1,
+      // Advanced analysis settings
+      beatReactive: true,           // React to beat detection
+      beatPulseIntensity: 1.0,      // How much particles pulse on beat
+      spectralColorMode: 'none',    // 'none', 'centroid', 'chroma'
+      spectralColorIntensity: 0.5,  // How much spectral color affects particles
+      onsetFlash: true,             // Flash on note onsets
+      rmsScale: true,               // Scale system based on RMS energy
       ...settings,
     };
 
     // Trail frame counter for decay timing
     this.trailFrameCounter = 0;
+
+    // Beat pulse state
+    this.beatPulse = 0;
+    this.beatDecay = 0.92;
+
+    // Onset flash state
+    this.onsetFlash = 0;
+    this.onsetDecay = 0.85;
 
     // Particles per group (roughly equal distribution)
     this.bassCount = Math.floor(particleCount * 0.33);
@@ -840,11 +857,24 @@ class ParticleSystem {
 
   /**
    * Update particle system based on audio data
+   * Supports both basic and advanced audio analysis
    */
   update(frequencyBands) {
     if (!this.geometry) return;
 
+    // Extract basic frequency bands
     const { bass, mid, high } = frequencyBands;
+    
+    // Extract advanced metrics (with defaults for backwards compatibility)
+    const spectralCentroid = frequencyBands.spectralCentroid || 0;
+    const spectralFlux = frequencyBands.spectralFlux || 0;
+    const rms = frequencyBands.rms || ((bass + mid + high) / 3);
+    const isBeat = frequencyBands.isBeat || false;
+    const beatIntensity = frequencyBands.beatIntensity || 0;
+    const isOnset = frequencyBands.isOnset || false;
+    const onsetIntensity = frequencyBands.onsetIntensity || 0;
+    const dominantPitch = frequencyBands.dominantPitch || null;
+    
     const positions = this.geometry.attributes.position.array;
     const colors = this.geometry.attributes.color.array;
 
@@ -854,9 +884,33 @@ class ParticleSystem {
     
     this.time += 0.016 * animSpeed;
 
-    // Global rotation
+    // ============ Beat Pulse Effect ============
+    if (this.settings.beatReactive && isBeat) {
+      this.beatPulse = Math.min(1.0, this.beatPulse + beatIntensity * this.settings.beatPulseIntensity);
+    }
+    this.beatPulse *= this.beatDecay;
+    
+    // ============ Onset Flash Effect ============
+    if (this.settings.onsetFlash && isOnset) {
+      this.onsetFlash = Math.min(1.0, this.onsetFlash + onsetIntensity * 0.8);
+    }
+    this.onsetFlash *= this.onsetDecay;
+
+    // ============ RMS Scale Factor ============
+    const rmsScale = this.settings.rmsScale ? (0.8 + rms * 0.4) : 1.0;
+
+    // ============ Spectral Color ============
+    let spectralColor = null;
+    if (this.settings.spectralColorMode === 'centroid') {
+      spectralColor = centroidToColor(spectralCentroid);
+    } else if (this.settings.spectralColorMode === 'chroma' && dominantPitch) {
+      spectralColor = pitchClassToColor(dominantPitch.pitchClass);
+    }
+
+    // Global rotation (enhanced by beat)
     const rotSpeed = this.settings.rotationSpeed;
-    this.points.rotation.y += rotSpeed + mid * rotSpeed * 5;
+    const beatRotBoost = this.beatPulse * 0.02;
+    this.points.rotation.y += rotSpeed + mid * rotSpeed * 5 + beatRotBoost;
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
@@ -876,6 +930,9 @@ class ParticleSystem {
       let colorIntensity = 0;
       let baseColor;
 
+      // ============ Beat Pulse Radial Expansion ============
+      const beatPulseOffset = this.beatPulse * 30 * this.settings.beatPulseIntensity;
+
       // Special animation for atom shape - orbital motion
       if (shape === 'atom' && group === 1) {
         const orbitRadius = this.velocities[i3];
@@ -883,9 +940,10 @@ class ParticleSystem {
         const baseAngle = this.velocities[i3 + 2];
         const angle = baseAngle + this.time * (1 + mid * 3);
         
-        positions[i3] = orbitRadius * Math.cos(angle) * (1 + mid * 0.3);
-        positions[i3 + 1] = orbitRadius * Math.sin(angle) * Math.cos(tilt) * (1 + mid * 0.3);
-        positions[i3 + 2] = orbitRadius * Math.sin(angle) * Math.sin(tilt) * (1 + mid * 0.3);
+        const orbitScale = (1 + mid * 0.3) * rmsScale + this.beatPulse * 0.2;
+        positions[i3] = orbitRadius * Math.cos(angle) * orbitScale;
+        positions[i3 + 1] = orbitRadius * Math.sin(angle) * Math.cos(tilt) * orbitScale;
+        positions[i3 + 2] = orbitRadius * Math.sin(angle) * Math.sin(tilt) * orbitScale;
         
         colorIntensity = mid;
         baseColor = this.bandColors.mid;
@@ -901,9 +959,9 @@ class ParticleSystem {
         
         if (group === 0 || group === 1) {
           const newAngle = baseAngle + twistSpeed;
-          const helixRadius = 60 * expansion * (1 + bass * 0.3);
-          positions[i3] = helixRadius * Math.cos(newAngle) + waveOffset;
-          positions[i3 + 2] = helixRadius * Math.sin(newAngle);
+          const helixRadius = 60 * expansion * (1 + bass * 0.3) * rmsScale;
+          positions[i3] = helixRadius * Math.cos(newAngle) + waveOffset + normalizedX * beatPulseOffset;
+          positions[i3 + 2] = helixRadius * Math.sin(newAngle) + normalizedZ * beatPulseOffset;
         }
         
         colorIntensity = group === 0 ? bass : (group === 1 ? mid : high);
@@ -914,18 +972,18 @@ class ParticleSystem {
         if (group === 0) {
           const bassEffect = bass * 100 * expansion;
           const pulse = Math.sin(this.time * 3 * animSpeed + phase) * 0.5 + 0.5;
-          const radialOffset = bassEffect * pulse;
+          const radialOffset = bassEffect * pulse * rmsScale;
           const waveOffset = Math.sin(this.time * 2 + distance * 0.02) * bass * 30;
 
-          offsetX = normalizedX * (radialOffset + waveOffset);
-          offsetY = normalizedY * (radialOffset + waveOffset);
-          offsetZ = normalizedZ * (radialOffset + waveOffset);
+          offsetX = normalizedX * (radialOffset + waveOffset + beatPulseOffset);
+          offsetY = normalizedY * (radialOffset + waveOffset + beatPulseOffset);
+          offsetZ = normalizedZ * (radialOffset + waveOffset + beatPulseOffset);
 
           colorIntensity = bass;
           baseColor = this.bandColors.bass;
         }
         else if (group === 1) {
-          const midEffect = mid * 60 * expansion;
+          const midEffect = mid * 60 * expansion * rmsScale;
           const swirl = this.time * 2 * animSpeed + phase;
           
           offsetX = Math.sin(swirl) * midEffect * this.velocities[i3] * 15;
@@ -933,15 +991,15 @@ class ParticleSystem {
           offsetZ = Math.sin(swirl * 1.3) * midEffect * this.velocities[i3 + 2] * 15;
 
           const radialOffset = mid * 50 * (Math.sin(this.time * animSpeed + phase) * 0.5 + 0.5);
-          offsetX += normalizedX * radialOffset;
-          offsetY += normalizedY * radialOffset;
-          offsetZ += normalizedZ * radialOffset;
+          offsetX += normalizedX * (radialOffset + beatPulseOffset * 0.5);
+          offsetY += normalizedY * (radialOffset + beatPulseOffset * 0.5);
+          offsetZ += normalizedZ * (radialOffset + beatPulseOffset * 0.5);
 
           colorIntensity = mid;
           baseColor = this.bandColors.mid;
         }
         else {
-          const highEffect = high * 70 * expansion;
+          const highEffect = high * 70 * expansion * rmsScale;
           const sparkle = Math.sin(this.time * 10 * animSpeed + phase);
           const twinkle = Math.random() < high * 0.4 ? 2.5 : 1;
 
@@ -950,9 +1008,9 @@ class ParticleSystem {
           offsetZ = this.velocities[i3 + 2] * highEffect * sparkle * twinkle;
 
           const radialOffset = high * 40 * (Math.sin(this.time * 5 * animSpeed + phase) * 0.5 + 0.5);
-          offsetX += normalizedX * radialOffset;
-          offsetY += normalizedY * radialOffset;
-          offsetZ += normalizedZ * radialOffset;
+          offsetX += normalizedX * (radialOffset + beatPulseOffset * 0.3);
+          offsetY += normalizedY * (radialOffset + beatPulseOffset * 0.3);
+          offsetZ += normalizedZ * (radialOffset + beatPulseOffset * 0.3);
 
           colorIntensity = high;
           baseColor = this.bandColors.high;
@@ -963,11 +1021,32 @@ class ParticleSystem {
         positions[i3 + 2] = baseZ + offsetZ;
       }
 
-      // Apply color
-      const brightness = 0.4 + colorIntensity * 1.8;
-      colors[i3] = Math.min(baseColor[0] * brightness, 1.0);
-      colors[i3 + 1] = Math.min(baseColor[1] * brightness, 1.0);
-      colors[i3 + 2] = Math.min(baseColor[2] * brightness, 1.0);
+      // ============ Apply Color with Advanced Features ============
+      let brightness = 0.4 + colorIntensity * 1.8;
+      
+      // Add onset flash brightness
+      brightness += this.onsetFlash * 0.6;
+      
+      // Calculate final color
+      let finalR, finalG, finalB;
+      
+      if (spectralColor && this.settings.spectralColorIntensity > 0) {
+        // Blend base color with spectral color
+        const blend = this.settings.spectralColorIntensity;
+        finalR = baseColor[0] * (1 - blend) + spectralColor[0] * blend;
+        finalG = baseColor[1] * (1 - blend) + spectralColor[1] * blend;
+        finalB = baseColor[2] * (1 - blend) + spectralColor[2] * blend;
+      } else {
+        finalR = baseColor[0];
+        finalG = baseColor[1];
+        finalB = baseColor[2];
+      }
+      
+      // Apply brightness and beat pulse color boost
+      const beatColorBoost = 1 + this.beatPulse * 0.5;
+      colors[i3] = Math.min(finalR * brightness * beatColorBoost, 1.0);
+      colors[i3 + 1] = Math.min(finalG * brightness * beatColorBoost, 1.0);
+      colors[i3 + 2] = Math.min(finalB * brightness * beatColorBoost, 1.0);
     }
 
     this.geometry.attributes.position.needsUpdate = true;
@@ -976,7 +1055,8 @@ class ParticleSystem {
     // Update material size
     if (this.settings.reactiveSize) {
       const energy = (bass + mid + high) / 3;
-      this.material.size = this.settings.particleSize + energy * 5;
+      const beatSizeBoost = this.beatPulse * 3;
+      this.material.size = this.settings.particleSize + energy * 5 + beatSizeBoost;
     } else {
       this.material.size = this.settings.particleSize;
     }
