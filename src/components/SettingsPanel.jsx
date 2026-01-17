@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './SettingsPanel.css';
 
 /**
- * Slider component for settings
+ * Slider component for settings with visual fill
  */
 const Slider = ({ label, value, min, max, step, onChange, unit = '' }) => {
+  // Calculate fill percentage for visual feedback
+  const fillPercent = ((value - min) / (max - min)) * 100;
+  
   return (
     <div className="slider-control">
       <div className="slider-header">
@@ -19,6 +22,9 @@ const Slider = ({ label, value, min, max, step, onChange, unit = '' }) => {
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="slider-input"
+        style={{
+          background: `linear-gradient(90deg, rgba(0, 255, 255, 0.5) 0%, rgba(255, 0, 255, 0.5) ${fillPercent}%, rgba(255, 255, 255, 0.1) ${fillPercent}%)`
+        }}
       />
     </div>
   );
@@ -94,6 +100,26 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
       [key]: value,
     });
   };
+
+  // Keyboard shortcut to toggle panel
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'KeyS' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Don't trigger if user is typing in an input
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          setIsOpen((prev) => !prev);
+        }
+      }
+      // Escape to close
+      if (e.code === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   return (
     <>

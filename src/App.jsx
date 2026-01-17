@@ -192,11 +192,14 @@ return (
         </>
       )}
 
-      {/* Keyboard shortcuts hint */}
+{/* Keyboard shortcuts hint */}
       {audioUrl && (
         <div className="shortcuts-hint">
           <div className="shortcut">
             <kbd>Space</kbd> Play/Pause
+          </div>
+          <div className="shortcut">
+            <kbd>S</kbd> Paramètres
           </div>
           <div className="shortcut">
             <kbd>F</kbd> Plein écran
