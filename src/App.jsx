@@ -53,7 +53,7 @@ const DEFAULT_SETTINGS = {
 function App() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioName, setAudioName] = useState('');
-  const [currentTheme, setCurrentTheme] = useState('neon');
+  const [currentTheme, setCurrentTheme] = useState('aurora');
   const [visualSettings, setVisualSettings] = useState(DEFAULT_SETTINGS);
 
   const audioRef = useRef(null);
@@ -159,13 +159,17 @@ function App() {
         }
       }
 
-      // Number keys 1-5: Change theme
+      // Number keys 1-9: Change theme (most popular themes)
       const themeMap = {
-        Digit1: 'neon',
-        Digit2: 'sunset',
-        Digit3: 'ocean',
-        Digit4: 'fire',
-        Digit5: 'pastel',
+        Digit1: 'aurora',
+        Digit2: 'cyberpunk',
+        Digit3: 'synthwave',
+        Digit4: 'ocean',
+        Digit5: 'inferno',
+        Digit6: 'nebula',
+        Digit7: 'ethereal',
+        Digit8: 'gold',
+        Digit9: 'noir',
       };
 
       if (themeMap[e.code]) {
@@ -226,7 +230,7 @@ function App() {
             Plein ecran
           </div>
           <div className="flex items-center gap-2 px-2.5 py-1.5 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/60 border border-white/10">
-            <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">1-5</kbd>
+            <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">1-9</kbd>
             Themes
           </div>
         </div>

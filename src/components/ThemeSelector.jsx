@@ -17,9 +17,10 @@ const ColorPreview = ({ palette }) => {
       {colors.map((color, index) => (
         <div
           key={index}
-          className="w-3 h-3 rounded-full"
+          className="w-3 h-3 rounded-full shadow-sm"
           style={{
             backgroundColor: `rgb(${color[0] * 255}, ${color[1] * 255}, ${color[2] * 255})`,
+            boxShadow: `0 0 6px rgba(${color[0] * 255}, ${color[1] * 255}, ${color[2] * 255}, 0.5)`,
           }}
         />
       ))}
@@ -37,18 +38,20 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
   return (
     <div className="fixed top-4 right-16 z-10">
       <Select value={currentTheme} onValueChange={onThemeChange}>
-        <SelectTrigger className="w-40 bg-black/40 backdrop-blur-xl border-white/10 text-foreground/90">
+        <SelectTrigger className="w-44 bg-black/40 backdrop-blur-xl border-white/10 text-foreground/90">
           <div className="flex items-center gap-2">
             <ColorPreview palette={palettes[currentTheme]} />
             <SelectValue />
           </div>
         </SelectTrigger>
-        <SelectContent className="bg-black/80 backdrop-blur-xl border-white/10">
+        <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 max-h-80">
           {paletteNames.map((name) => (
             <SelectItem key={name} value={name}>
               <div className="flex items-center gap-3">
                 <ColorPreview palette={palettes[name]} />
-                <span>{palettes[name].name}</span>
+                <div className="flex flex-col">
+                  <span className="text-sm">{palettes[name].name}</span>
+                </div>
               </div>
             </SelectItem>
           ))}
