@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import VisualizerCanvas from './components/VisualizerCanvas';
-import AudioUploader from './components/AudioUploader';
-import ControlPanel from './components/ControlPanel';
-import ThemeSelector from './components/ThemeSelector';
-import FullscreenButton from './components/FullscreenButton';
-import SettingsPanel from './components/SettingsPanel';
-import useAudioAnalysis from './hooks/useAudioAnalysis';
+import VisualizerCanvas from '@/components/VisualizerCanvas';
+import AudioUploader from '@/components/AudioUploader';
+import ControlPanel from '@/components/ControlPanel';
+import ThemeSelector from '@/components/ThemeSelector';
+import FullscreenButton from '@/components/FullscreenButton';
+import SettingsPanel from '@/components/SettingsPanel';
+import useAudioAnalysis from '@/hooks/useAudioAnalysis';
 import './App.css';
 
 // Default visualization settings
@@ -112,7 +112,7 @@ function App() {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
     };
-  }, [audioUrl, startAnalysis, stopAnalysis]); // Added audioUrl as dependency
+  }, [audioUrl, startAnalysis, stopAnalysis]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -158,24 +158,24 @@ function App() {
     };
   }, []);
 
-return (
+  return (
     <div className="app">
       {/* Three.js Canvas */}
-      <VisualizerCanvas 
-        palette={currentTheme} 
-        sceneRef={sceneRef} 
+      <VisualizerCanvas
+        palette={currentTheme}
+        sceneRef={sceneRef}
         visualSettings={visualSettings}
       />
 
       {/* Audio element (hidden) */}
       {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} style={{ display: 'none' }} />
+        <audio ref={audioRef} src={audioUrl} className="hidden" />
       )}
 
       {/* Settings Panel */}
-      <SettingsPanel 
-        settings={visualSettings} 
-        onSettingsChange={handleSettingsChange} 
+      <SettingsPanel
+        settings={visualSettings}
+        onSettingsChange={handleSettingsChange}
       />
 
       {/* UI Overlay */}
@@ -192,20 +192,32 @@ return (
         </>
       )}
 
-{/* Keyboard shortcuts hint */}
+      {/* Keyboard shortcuts hint */}
       {audioUrl && (
-        <div className="shortcuts-hint">
-          <div className="shortcut">
-            <kbd>Space</kbd> Play/Pause
+        <div className="fixed bottom-28 right-5 flex flex-col gap-2 z-[5]">
+          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
+            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
+              Space
+            </kbd>
+            Play/Pause
           </div>
-          <div className="shortcut">
-            <kbd>S</kbd> Paramètres
+          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
+            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
+              S
+            </kbd>
+            Parametres
           </div>
-          <div className="shortcut">
-            <kbd>F</kbd> Plein écran
+          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
+            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
+              F
+            </kbd>
+            Plein ecran
           </div>
-          <div className="shortcut">
-            <kbd>1-5</kbd> Thèmes
+          <div className="flex items-center gap-2 px-3 py-2 bg-background/50 backdrop-blur-md rounded-lg text-xs text-muted-foreground">
+            <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-semibold font-mono border border-border">
+              1-5
+            </kbd>
+            Themes
           </div>
         </div>
       )}
