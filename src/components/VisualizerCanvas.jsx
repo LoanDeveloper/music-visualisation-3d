@@ -5,11 +5,11 @@ import useThreeScene from '../hooks/useThreeScene';
  * VisualizerCanvas component
  * Wrapper for the Three.js canvas element
  */
-const VisualizerCanvas = ({ palette, sceneRef }) => {
+const VisualizerCanvas = ({ palette, sceneRef, visualSettings }) => {
   const canvasRef = useRef(null);
   
   // Pass sceneRef directly to the hook - it will store the scene there
-  useThreeScene(canvasRef, palette, sceneRef);
+  useThreeScene(canvasRef, palette, sceneRef, visualSettings);
 
   return (
     <canvas

@@ -6,8 +6,9 @@ import ThreeScene from '../core/ThreeScene';
  * @param {React.RefObject} canvasRef - Reference to canvas element
  * @param {string} palette - Current color palette name
  * @param {React.RefObject} sceneRef - Reference to store ThreeScene instance (from parent)
+ * @param {Object} visualSettings - Visualization settings
  */
-export const useThreeScene = (canvasRef, palette = 'neon', sceneRef) => {
+export const useThreeScene = (canvasRef, palette = 'neon', sceneRef, visualSettings) => {
   // Initialize scene
   useEffect(() => {
     if (!canvasRef.current) {
@@ -18,7 +19,7 @@ export const useThreeScene = (canvasRef, palette = 'neon', sceneRef) => {
     console.log('[useThreeScene] Initializing ThreeScene...');
     
     // Create scene and store in provided ref
-    const scene = new ThreeScene(canvasRef.current, palette);
+    const scene = new ThreeScene(canvasRef.current, palette, visualSettings);
     
     if (sceneRef) {
       sceneRef.current = scene;
@@ -52,6 +53,13 @@ export const useThreeScene = (canvasRef, palette = 'neon', sceneRef) => {
       sceneRef.current.updatePalette(palette);
     }
   }, [palette, sceneRef]);
+
+  // Update visual settings when they change
+  useEffect(() => {
+    if (sceneRef?.current && visualSettings) {
+      sceneRef.current.updateSettings(visualSettings);
+    }
+  }, [visualSettings, sceneRef]);
 };
 
 export default useThreeScene;

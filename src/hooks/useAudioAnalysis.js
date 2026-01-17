@@ -5,12 +5,19 @@ import AudioAnalyzer from '../core/AudioAnalyzer';
  * Custom hook for managing audio analysis
  * @param {React.RefObject} audioRef - Reference to audio element
  * @param {React.RefObject} sceneRef - Reference to ThreeScene instance
+ * @param {Object} visualSettings - Visualization settings
  * @returns {Object} Audio analyzer methods
  */
-export const useAudioAnalysis = (audioRef, sceneRef) => {
+export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const isRunningRef = useRef(false);
+  const settingsRef = useRef(visualSettings);
+
+  // Keep settings ref updated
+  useEffect(() => {
+    settingsRef.current = visualSettings;
+  }, [visualSettings]);
 
   // Initialize audio analyzer
   const initialize = useCallback(() => {
@@ -95,17 +102,25 @@ export const useAudioAnalysis = (audioRef, sceneRef) => {
       // Get frequency bands
       const frequencyBands = analyzerRef.current.getFrequencyBands();
 
+      // Apply sensitivity settings
+      const settings = settingsRef.current;
+      const adjustedBands = {
+        bass: frequencyBands.bass * settings.sensitivity * settings.bassIntensity,
+        mid: frequencyBands.mid * settings.sensitivity * settings.midIntensity,
+        high: frequencyBands.high * settings.sensitivity * settings.highIntensity,
+      };
+
       // Log every 120 frames (~2 seconds at 60fps)
       frameCount++;
       if (frameCount % 120 === 0) {
-        const hasData = frequencyBands.bass > 0 || frequencyBands.mid > 0 || frequencyBands.high > 0;
-        console.log('[AudioAnalysis] Frequency bands:', frequencyBands, '| Has data:', hasData);
+        const hasData = adjustedBands.bass > 0 || adjustedBands.mid > 0 || adjustedBands.high > 0;
+        console.log('[AudioAnalysis] Frequency bands:', adjustedBands, '| Has data:', hasData);
         console.log('[AudioAnalysis] Scene available:', !!sceneRef.current);
       }
 
       // Update scene with frequency data - read ref directly each time
       if (sceneRef.current) {
-        sceneRef.current.updateFrequencyBands(frequencyBands);
+        sceneRef.current.updateFrequencyBands(adjustedBands);
       }
 
       // Continue loop
