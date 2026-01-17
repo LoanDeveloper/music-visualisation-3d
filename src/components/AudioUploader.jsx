@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import './AudioUploader.css';
+import { Music } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 /**
  * AudioUploader component
@@ -41,7 +42,7 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
     const validExtensions = ['mp3', 'wav', 'ogg'];
 
     if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
-      alert('Format de fichier non supporté. Veuillez uploader un fichier MP3, WAV ou OGG.');
+      alert('Format de fichier non supporte. Veuillez uploader un fichier MP3, WAV ou OGG.');
       return;
     }
 
@@ -55,26 +56,34 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
   }
 
   return (
-    <div
-      className="audio-uploader"
+    <Card
+      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] max-w-[90%] p-12 bg-card/50 backdrop-blur-md border-2 border-dashed border-muted-foreground/30 cursor-pointer transition-all duration-300 hover:bg-card/70 hover:border-muted-foreground/50 hover:scale-[1.02] z-[100]"
       onClick={handleClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div className="uploader-content">
-        <div className="uploader-icon">🎵</div>
-        <h2>Visualisation 3D Musicale</h2>
-        <p>Cliquez ou glissez-déposez un fichier audio</p>
-        <p className="uploader-formats">MP3, WAV, OGG</p>
+      <div className="pointer-events-none text-center">
+        <div className="flex justify-center mb-5">
+          <Music className="h-16 w-16 text-muted-foreground animate-pulse" />
+        </div>
+        <h2 className="text-2xl font-semibold text-foreground mb-5">
+          Visualisation 3D Musicale
+        </h2>
+        <p className="text-base text-muted-foreground mb-2">
+          Cliquez ou glissez-deposez un fichier audio
+        </p>
+        <p className="text-sm text-muted-foreground/70">
+          MP3, WAV, OGG
+        </p>
       </div>
       <input
         ref={fileInputRef}
         type="file"
         accept="audio/mp3,audio/mpeg,audio/wav,audio/ogg"
         onChange={handleFileChange}
-        style={{ display: 'none' }}
+        className="hidden"
       />
-    </div>
+    </Card>
   );
 };
 

@@ -1,70 +1,50 @@
 import { useState, useEffect } from 'react';
-import './SettingsPanel.css';
+import { Settings, ChevronDown, Music, Sparkles, RotateCcw, Shapes } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 /**
- * Slider component for settings with visual fill
+ * Slider control with label and value display
  */
-const Slider = ({ label, value, min, max, step, onChange, unit = '' }) => {
-  // Calculate fill percentage for visual feedback
-  const fillPercent = ((value - min) / (max - min)) * 100;
-  
+const SliderControl = ({ label, value, min, max, step, onChange, unit = '' }) => {
   return (
-    <div className="slider-control">
-      <div className="slider-header">
-        <span className="slider-label">{label}</span>
-        <span className="slider-value">{value.toFixed(step < 1 ? 2 : 0)}{unit}</span>
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        <span className="text-xs text-muted-foreground font-mono">
+          {value.toFixed(step < 1 ? 2 : 0)}{unit}
+        </span>
       </div>
-      <input
-        type="range"
+      <Slider
+        value={[value]}
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="slider-input"
-        style={{
-          background: `linear-gradient(90deg, rgba(0, 255, 255, 0.5) 0%, rgba(255, 0, 255, 0.5) ${fillPercent}%, rgba(255, 255, 255, 0.1) ${fillPercent}%)`
-        }}
+        onValueChange={(v) => onChange(v[0])}
       />
-    </div>
-  );
-};
-
-/**
- * Toggle component for boolean settings
- */
-const Toggle = ({ label, checked, onChange }) => {
-  return (
-    <div className="toggle-control">
-      <span className="toggle-label">{label}</span>
-      <button
-        className={`toggle-button ${checked ? 'active' : ''}`}
-        onClick={() => onChange(!checked)}
-      >
-        <span className="toggle-indicator" />
-      </button>
-    </div>
-  );
-};
-
-/**
- * Select component for dropdown settings
- */
-const Select = ({ label, value, options, onChange }) => {
-  return (
-    <div className="select-control">
-      <span className="select-label">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="select-input"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
     </div>
   );
 };
@@ -72,18 +52,32 @@ const Select = ({ label, value, options, onChange }) => {
 /**
  * Collapsible section for organizing settings
  */
-const Section = ({ title, icon, children, defaultOpen = true }) => {
+const Section = ({ title, icon: Icon, children, defaultOpen = true }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className={`settings-section ${isOpen ? 'open' : 'closed'}`}>
-      <button className="section-header" onClick={() => setIsOpen(!isOpen)}>
-        <span className="section-icon">{icon}</span>
-        <span className="section-title">{title}</span>
-        <span className={`section-chevron ${isOpen ? 'open' : ''}`}>&#9660;</span>
-      </button>
-      {isOpen && <div className="section-content">{children}</div>}
-    </div>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <Button
+          variant="ghost"
+          className="w-full justify-between px-3 py-2 h-auto hover:bg-muted/50"
+        >
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{title}</span>
+          </div>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-180"
+            )}
+          />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-4 pt-2 space-y-4">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
@@ -122,64 +116,58 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
   }, [isOpen]);
 
   return (
-    <>
-      {/* Toggle button */}
-      <button
-        className={`settings-toggle ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        title="Paramètres de visualisation"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </button>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed top-5 left-5 z-[100] bg-background/60 backdrop-blur-md border-border/50 hover:bg-background/80"
+          title="Parametres de visualisation"
+        >
+          <Settings className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[320px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Parametres</SheetTitle>
+        </SheetHeader>
 
-      {/* Settings panel */}
-      <div className={`settings-panel ${isOpen ? 'open' : ''}`}>
-        <div className="settings-header">
-          <h2>Paramètres</h2>
-          <button className="close-button" onClick={() => setIsOpen(false)}>
-            &times;
-          </button>
-        </div>
-
-        <div className="settings-content">
+        <div className="mt-6 space-y-2">
           {/* Audio Section */}
-          <Section title="Audio" icon="🎵" defaultOpen={true}>
-            <Slider
-              label="Sensibilité globale"
+          <Section title="Audio" icon={Music} defaultOpen={true}>
+            <SliderControl
+              label="Sensibilite globale"
               value={settings.sensitivity}
               min={0.5}
               max={3}
               step={0.1}
               onChange={(v) => updateSetting('sensitivity', v)}
             />
-            <Slider
-              label="Intensité Bass"
+            <SliderControl
+              label="Intensite Bass"
               value={settings.bassIntensity}
               min={0}
               max={3}
               step={0.1}
               onChange={(v) => updateSetting('bassIntensity', v)}
             />
-            <Slider
-              label="Intensité Mid"
+            <SliderControl
+              label="Intensite Mid"
               value={settings.midIntensity}
               min={0}
               max={3}
               step={0.1}
               onChange={(v) => updateSetting('midIntensity', v)}
             />
-            <Slider
-              label="Intensité High"
+            <SliderControl
+              label="Intensite High"
               value={settings.highIntensity}
               min={0}
               max={3}
               step={0.1}
               onChange={(v) => updateSetting('highIntensity', v)}
             />
-            <Slider
+            <SliderControl
               label="Smoothing audio"
               value={settings.smoothing}
               min={0.1}
@@ -189,9 +177,11 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             />
           </Section>
 
+          <Separator />
+
           {/* Particles Section */}
-          <Section title="Particules" icon="✨" defaultOpen={true}>
-            <Slider
+          <Section title="Particules" icon={Sparkles} defaultOpen={true}>
+            <SliderControl
               label="Nombre de particules"
               value={settings.particleCount}
               min={1000}
@@ -199,7 +189,7 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
               step={1000}
               onChange={(v) => updateSetting('particleCount', v)}
             />
-            <Slider
+            <SliderControl
               label="Taille de base"
               value={settings.particleSize}
               min={1}
@@ -207,16 +197,22 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
               step={0.5}
               onChange={(v) => updateSetting('particleSize', v)}
             />
-            <Toggle
-              label="Taille réactive"
-              checked={settings.reactiveSize}
-              onChange={(v) => updateSetting('reactiveSize', v)}
-            />
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">
+                Taille reactive
+              </Label>
+              <Switch
+                checked={settings.reactiveSize}
+                onCheckedChange={(v) => updateSetting('reactiveSize', v)}
+              />
+            </div>
           </Section>
 
+          <Separator />
+
           {/* Animation Section */}
-          <Section title="Animation" icon="🌀" defaultOpen={false}>
-            <Slider
+          <Section title="Animation" icon={RotateCcw} defaultOpen={false}>
+            <SliderControl
               label="Vitesse rotation"
               value={settings.rotationSpeed}
               min={0}
@@ -224,7 +220,7 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
               step={0.001}
               onChange={(v) => updateSetting('rotationSpeed', v)}
             />
-            <Slider
+            <SliderControl
               label="Vitesse animation"
               value={settings.animationSpeed}
               min={0.5}
@@ -234,18 +230,26 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             />
           </Section>
 
+          <Separator />
+
           {/* Shape Section */}
-          <Section title="Forme" icon="🔮" defaultOpen={true}>
-            <Select
-              label="Distribution"
-              value={settings.shape}
-              options={[
-                { value: 'sphere', label: 'Sphère' },
-                { value: 'spiral', label: 'Spirale / Galaxie' },
-              ]}
-              onChange={(v) => updateSetting('shape', v)}
-            />
-            <Slider
+          <Section title="Forme" icon={Shapes} defaultOpen={true}>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Distribution</Label>
+              <Select
+                value={settings.shape}
+                onValueChange={(v) => updateSetting('shape', v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sphere">Sphere</SelectItem>
+                  <SelectItem value="spiral">Spirale / Galaxie</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <SliderControl
               label="Expansion (rayon)"
               value={settings.expansion}
               min={0.5}
@@ -257,22 +261,17 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
         </div>
 
         {/* Reset button */}
-        <div className="settings-footer">
-          <button
-            className="reset-button"
+        <div className="mt-6 pt-4 border-t border-border">
+          <Button
+            variant="outline"
+            className="w-full"
             onClick={() => onSettingsChange(null)}
-            title="Réinitialiser les paramètres"
           >
-            Réinitialiser
-          </button>
+            Reinitialiser
+          </Button>
         </div>
-      </div>
-
-      {/* Backdrop */}
-      {isOpen && (
-        <div className="settings-backdrop" onClick={() => setIsOpen(false)} />
-      )}
-    </>
+      </SheetContent>
+    </Sheet>
   );
 };
 

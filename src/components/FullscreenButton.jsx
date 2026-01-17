@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import './FullscreenButton.css';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 /**
  * FullscreenButton component
@@ -27,18 +34,32 @@ const FullscreenButton = () => {
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.error('Erreur lors du basculement en plein écran:', error);
+      console.error('Erreur lors du basculement en plein ecran:', error);
     }
   };
 
   return (
-    <button
-      className="fullscreen-button"
-      onClick={toggleFullscreen}
-      title={isFullscreen ? 'Quitter le plein écran (F)' : 'Plein écran (F)'}
-    >
-      {isFullscreen ? '⤓' : '⤢'}
-    </button>
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="fixed top-5 right-5 z-10 bg-background/60 backdrop-blur-md border-border/50 hover:bg-background/80"
+            onClick={toggleFullscreen}
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-5 w-5" />
+            ) : (
+              <Maximize2 className="h-5 w-5" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          <p>{isFullscreen ? 'Quitter le plein ecran (F)' : 'Plein ecran (F)'}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

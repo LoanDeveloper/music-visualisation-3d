@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import './ControlPanel.css';
+import { Play, Pause, Volume2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 
 /**
  * ControlPanel component
@@ -43,20 +45,20 @@ const ControlPanel = ({ audioRef, audioName }) => {
     }
   };
 
-  const handleProgressChange = (e) => {
+  const handleProgressChange = (value) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const newTime = parseFloat(e.target.value);
+    const newTime = value[0];
     audio.currentTime = newTime;
     setCurrentTime(newTime);
   };
 
-  const handleVolumeChange = (e) => {
+  const handleVolumeChange = (value) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const newVolume = parseFloat(e.target.value);
+    const newVolume = value[0];
     audio.volume = newVolume;
     setVolume(newVolume);
   };
@@ -69,40 +71,51 @@ const ControlPanel = ({ audioRef, audioName }) => {
   };
 
   return (
-    <div className="control-panel">
-      <div className="audio-info">
-        <div className="audio-name">{audioName || 'Aucun fichier'}</div>
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[600px] max-w-[90%] p-5 bg-background/70 backdrop-blur-md rounded-xl border border-border z-10 shadow-lg">
+      <div className="mb-3 text-center">
+        <div className="text-sm text-muted-foreground truncate">
+          {audioName || 'Aucun fichier'}
+        </div>
       </div>
 
-      <div className="controls">
-        <button className="play-button" onClick={togglePlayPause}>
-          {isPlaying ? '⏸' : '▶'}
-        </button>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-12 w-12 rounded-full shrink-0"
+          onClick={togglePlayPause}
+        >
+          {isPlaying ? (
+            <Pause className="h-5 w-5" />
+          ) : (
+            <Play className="h-5 w-5 ml-0.5" />
+          )}
+        </Button>
 
-        <div className="progress-container">
-          <span className="time">{formatTime(currentTime)}</span>
-          <input
-            type="range"
-            className="progress-bar"
-            min="0"
-            max={duration || 0}
-            value={currentTime}
-            onChange={handleProgressChange}
-            step="0.1"
+        <div className="flex items-center gap-3 flex-1">
+          <span className="text-xs text-muted-foreground min-w-[40px] text-center font-mono">
+            {formatTime(currentTime)}
+          </span>
+          <Slider
+            value={[currentTime]}
+            max={duration || 100}
+            step={0.1}
+            onValueChange={handleProgressChange}
+            className="flex-1"
           />
-          <span className="time">{formatTime(duration)}</span>
+          <span className="text-xs text-muted-foreground min-w-[40px] text-center font-mono">
+            {formatTime(duration)}
+          </span>
         </div>
 
-        <div className="volume-container">
-          <span className="volume-icon">🔊</span>
-          <input
-            type="range"
-            className="volume-bar"
-            min="0"
-            max="1"
-            value={volume}
-            onChange={handleVolumeChange}
-            step="0.01"
+        <div className="flex items-center gap-2">
+          <Volume2 className="h-4 w-4 text-muted-foreground" />
+          <Slider
+            value={[volume]}
+            max={1}
+            step={0.01}
+            onValueChange={handleVolumeChange}
+            className="w-20"
           />
         </div>
       </div>
