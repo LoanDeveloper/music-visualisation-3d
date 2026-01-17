@@ -70,6 +70,11 @@ function App() {
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
 
+    // If audio is already playing, start analysis
+    if (!audio.paused) {
+      startAnalysis();
+    }
+
     return () => {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
