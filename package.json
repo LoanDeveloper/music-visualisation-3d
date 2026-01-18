@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "validate-models": "node scripts/node/validate-models.mjs",
+    "validate-models:verbose": "node scripts/node/validate-models.mjs --verbose"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",
