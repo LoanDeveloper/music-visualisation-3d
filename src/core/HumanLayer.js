@@ -82,6 +82,13 @@ class HumanLayer {
     this.mainGroup = new THREE.Group();
     this.mainGroup.visible = false;
     
+    // Scale to match scene (model is ~1.8 units, camera at z=300)
+    // Scale factor: make human ~150 units tall to be visible
+    this.mainGroup.scale.setScalar(80);
+    
+    // Position at origin, slightly forward so it's in front of particles
+    this.mainGroup.position.set(0, -60, 0); // Center vertically
+    
     // Crossfade timing
     this.crossfadeStartTime = 0;
     this.isCrossfading = false;
@@ -233,10 +240,11 @@ class HumanLayer {
         );
         
         // Create material (white lines, matrix vibe)
+        // Higher base opacity for better visibility
         const material = new THREE.LineBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.5,
+          opacity: 0.7,
           depthTest: true,
           depthWrite: false,
         });
