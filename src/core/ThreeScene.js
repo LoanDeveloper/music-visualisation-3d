@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import ParticleSystem from './ParticleSystem';
 import CameraController from './CameraController';
+import HumanLayer from './HumanLayer';
 import { getPalette } from '../utils/colorPalettes';
 
 /**
@@ -21,6 +22,7 @@ class ThreeScene {
     // Custom objects
     this.particleSystem = null;
     this.cameraController = null;
+    this.humanLayer = null;
 
     // Animation
     this.animationFrameId = null;
@@ -68,6 +70,9 @@ class ThreeScene {
     // Create camera controller
     this.cameraController = new CameraController(this.camera, this.canvas);
 
+    // Create human layer (matrix vibe - lazy loaded on enable)
+    this.humanLayer = new HumanLayer(this.scene);
+
     // Start animation loop
     this.startAnimation();
 
@@ -98,6 +103,15 @@ class ThreeScene {
    */
   updateFrequencyBands(frequencyBands) {
     this.currentFrequencyBands = frequencyBands;
+    
+    // Update human layer with frequency bands
+    if (this.humanLayer) {
+      this.humanLayer.updateFrequencyBands(
+        frequencyBands.bass,
+        frequencyBands.mid,
+        frequencyBands.high
+      );
+    }
     
     // Log significant audio activity
     const total = frequencyBands.bass + frequencyBands.mid + frequencyBands.high;
@@ -248,6 +262,51 @@ class ThreeScene {
     }
   }
 
+  // ============ Human Layer Methods ============
+
+  /**
+   * Enable/disable human layer
+   * @param {boolean} enabled
+   * @returns {Promise<boolean>} - Success status
+   */
+  async setHumanLayerEnabled(enabled) {
+    if (this.humanLayer) {
+      return await this.humanLayer.setEnabled(enabled);
+    }
+    return false;
+  }
+
+  /**
+   * Set human layer preset
+   * @param {string} presetId - Preset ID from humanPresets
+   */
+  setHumanPreset(presetId) {
+    if (this.humanLayer) {
+      this.humanLayer.setPreset(presetId);
+    }
+  }
+
+  /**
+   * Set human layer pose
+   * @param {string} poseId - 'open' or 'closed'
+   */
+  async setHumanPose(poseId) {
+    if (this.humanLayer) {
+      await this.humanLayer.setPose(poseId);
+    }
+  }
+
+  /**
+   * Get human layer state
+   * @returns {object|null}
+   */
+  getHumanLayerState() {
+    if (this.humanLayer) {
+      return this.humanLayer.getState();
+    }
+    return null;
+  }
+
   /**
    * Clean up resources
    */
@@ -259,6 +318,12 @@ class ThreeScene {
     if (this.particleSystem) {
       this.particleSystem.destroy();
       this.particleSystem = null;
+    }
+
+    // Destroy human layer
+    if (this.humanLayer) {
+      this.humanLayer.dispose();
+      this.humanLayer = null;
     }
 
     // Destroy camera controller
