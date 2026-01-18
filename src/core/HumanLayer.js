@@ -172,6 +172,20 @@ class HumanLayer {
   }
   
   /**
+   * Check if a model file exists before loading
+   * @param {string} url - Model URL
+   * @returns {Promise<boolean>}
+   */
+  async checkModelExists(url) {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+  
+  /**
    * Load a pose's GLB model
    * @param {string} poseId - 'open' or 'closed'
    */
@@ -183,6 +197,12 @@ class HumanLayer {
     this.isLoading = true;
     
     try {
+      // Check if model file exists first (avoids cryptic JSON.parse errors)
+      const exists = await this.checkModelExists(pose.modelPath);
+      if (!exists) {
+        throw new Error(`Model file not found: ${pose.modelPath}`);
+      }
+      
       const gltf = await new Promise((resolve, reject) => {
         this.loader.load(
           pose.modelPath,

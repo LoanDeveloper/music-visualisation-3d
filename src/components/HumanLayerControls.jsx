@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Brain, Heart, Activity } from 'lucide-react';
+import { User, Brain, Heart, Activity, AlertTriangle } from 'lucide-react';
 import { getHumanPresetsForUI, POSES } from '@/utils/humanPresets';
 
 /**
@@ -22,6 +22,7 @@ const HumanLayerControls = ({
   pose,
   onPoseChange,
   isLoading,
+  hasError,
 }) => {
   const presets = getHumanPresetsForUI();
   const poses = Object.values(POSES);
@@ -63,7 +64,7 @@ const HumanLayerControls = ({
       </div>
 
       {/* Controls (visible when enabled) */}
-      {enabled && (
+      {enabled && !hasError && (
         <div className="space-y-3 pt-2 border-t border-white/10">
           {/* Preset selector */}
           <div className="space-y-1.5">
@@ -109,6 +110,21 @@ const HumanLayerControls = ({
           {/* Preset description */}
           <div className="text-[10px] text-foreground/40 italic">
             {presets.find((p) => p.id === preset)?.description || ''}
+          </div>
+        </div>
+      )}
+
+      {/* Error message */}
+      {hasError && (
+        <div className="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="text-[10px] text-red-300/90 leading-relaxed">
+              Modeles 3D non trouves. Placez les fichiers GLB dans{' '}
+              <code className="px-1 py-0.5 bg-red-500/20 rounded text-[9px]">
+                /public/models/human/
+              </code>
+            </div>
           </div>
         </div>
       )}

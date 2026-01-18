@@ -70,6 +70,7 @@ function App() {
   const [humanPreset, setHumanPreset] = useState(DEFAULT_PRESET);
   const [humanPose, setHumanPose] = useState(DEFAULT_POSE);
   const [humanLayerLoading, setHumanLayerLoading] = useState(false);
+  const [humanLayerError, setHumanLayerError] = useState(false);
 
   const audioRef = useRef(null);
   const sceneRef = useRef(null);
@@ -89,13 +90,20 @@ function App() {
     if (!sceneRef.current) return;
     
     setHumanLayerLoading(true);
+    setHumanLayerError(false);
     try {
       const success = await sceneRef.current.setHumanLayerEnabled(enabled);
       if (success) {
         setHumanLayerEnabled(enabled);
+        setHumanLayerError(false);
+      } else {
+        setHumanLayerEnabled(false);
+        setHumanLayerError(true);
       }
     } catch (err) {
       console.error('[App] Human layer enable error:', err);
+      setHumanLayerEnabled(false);
+      setHumanLayerError(true);
     } finally {
       setHumanLayerLoading(false);
     }
@@ -268,6 +276,7 @@ function App() {
             pose={humanPose}
             onPoseChange={handleHumanPoseChange}
             isLoading={humanLayerLoading}
+            hasError={humanLayerError}
           />
         </div>
       )}
