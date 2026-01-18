@@ -6,7 +6,9 @@ import ThemeSelector from '@/components/ThemeSelector';
 import FullscreenButton from '@/components/FullscreenButton';
 import ZoomControl from '@/components/ZoomControl';
 import SettingsPanel from '@/components/SettingsPanel';
+import HumanLayerControls from '@/components/HumanLayerControls';
 import useAudioAnalysis from '@/hooks/useAudioAnalysis';
+import { DEFAULT_PRESET, DEFAULT_POSE } from '@/utils/humanPresets';
 import './App.css';
 
 // Default visualization settings - balanced for all frequencies
@@ -63,6 +65,13 @@ function App() {
   const [currentTheme, setCurrentTheme] = useState('aurora');
   const [visualSettings, setVisualSettings] = useState(DEFAULT_SETTINGS);
 
+  // Human layer state
+  const [humanLayerEnabled, setHumanLayerEnabled] = useState(false);
+  const [humanPreset, setHumanPreset] = useState(DEFAULT_PRESET);
+  const [humanPose, setHumanPose] = useState(DEFAULT_POSE);
+  const [humanLayerLoading, setHumanLayerLoading] = useState(false);
+  const [humanLayerError, setHumanLayerError] = useState(false);
+
   const audioRef = useRef(null);
   const sceneRef = useRef(null);
 
@@ -73,6 +82,51 @@ function App() {
       setVisualSettings(DEFAULT_SETTINGS);
     } else {
       setVisualSettings(newSettings);
+    }
+  }, []);
+
+  // Human layer handlers
+  const handleHumanLayerEnabledChange = useCallback(async (enabled) => {
+    if (!sceneRef.current) return;
+    
+    setHumanLayerLoading(true);
+    setHumanLayerError(false);
+    try {
+      const success = await sceneRef.current.setHumanLayerEnabled(enabled);
+      if (success) {
+        setHumanLayerEnabled(enabled);
+        setHumanLayerError(false);
+      } else {
+        setHumanLayerEnabled(false);
+        setHumanLayerError(true);
+      }
+    } catch (err) {
+      console.error('[App] Human layer enable error:', err);
+      setHumanLayerEnabled(false);
+      setHumanLayerError(true);
+    } finally {
+      setHumanLayerLoading(false);
+    }
+  }, []);
+
+  const handleHumanPresetChange = useCallback((presetId) => {
+    if (sceneRef.current) {
+      sceneRef.current.setHumanPreset(presetId);
+      setHumanPreset(presetId);
+    }
+  }, []);
+
+  const handleHumanPoseChange = useCallback(async (poseId) => {
+    if (!sceneRef.current) return;
+    
+    setHumanLayerLoading(true);
+    try {
+      await sceneRef.current.setHumanPose(poseId);
+      setHumanPose(poseId);
+    } catch (err) {
+      console.error('[App] Human pose change error:', err);
+    } finally {
+      setHumanLayerLoading(false);
     }
   }, []);
 
@@ -210,6 +264,20 @@ function App() {
         settings={visualSettings}
         onSettingsChange={handleSettingsChange}
       />
+
+      {/* Human Layer Controls */}
+      {audioUrl && (
+        <HumanLayerControls
+          enabled={humanLayerEnabled}
+          onEnabledChange={handleHumanLayerEnabledChange}
+          preset={humanPreset}
+          onPresetChange={handleHumanPresetChange}
+          pose={humanPose}
+          onPoseChange={handleHumanPoseChange}
+          isLoading={humanLayerLoading}
+          hasError={humanLayerError}
+        />
+      )}
 
       {/* UI Overlay */}
       <AudioUploader onFileSelect={handleFileSelect} hasAudio={!!audioUrl} />

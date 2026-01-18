@@ -1,0 +1,45 @@
+# Attributions
+
+This file contains attribution information for third-party assets used in this project.
+
+## Human Layer 3D Models
+
+### Recommended Asset Sources
+
+The Human Layer feature requires GLB model files that should be sourced from
+appropriately licensed 3D anatomy resources:
+
+**Z-Anatomy** (Recommended)
+- Website: https://www.z-anatomy.com/
+- License: CC BY-SA 4.0
+- Attribution: "Human anatomy models derived from Z-Anatomy (https://www.z-anatomy.com/), licensed under CC BY-SA 4.0"
+
+**BodyParts3D** (Alternative)
+- Website: http://lifesciencedb.jp/bp3d/
+- License: CC BY-SA 2.1 JP
+- Attribution: "Human anatomy models derived from BodyParts3D, The Database Center for Life Science, licensed under CC BY-SA 2.1 Japan"
+
+### Current Status
+
+[ ] Models not yet added - placeholder files pending
+
+### Usage Notes
+
+- Models should be preprocessed in Blender before use
+- See /public/models/human/README.md for preparation guidelines
+- Maintain license compliance when distributing this application
+
+---
+
+## Three.js
+
+- Website: https://threejs.org/
+- License: MIT
+- Copyright (c) 2010-2024 three.js authors
+
+---
+
+## Lucide Icons
+
+- Website: https://lucide.dev/
+- License: ISC

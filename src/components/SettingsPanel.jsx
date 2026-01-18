@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RotateCcw, Save, Trash2 } from 'lucide-react';
+import { RotateCcw, Save, Trash2, GripVertical } from 'lucide-react';
 import {
   getAllPresets,
   getPreset,
@@ -18,6 +18,7 @@ import {
   deleteCustomPreset,
   BUILT_IN_PRESETS,
 } from '@/utils/presets';
+import { useDraggable } from '@/hooks/useDraggable';
 
 /**
  * Slider control with label and value display
@@ -92,6 +93,12 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [presets, setPresets] = useState(getAllPresets());
 
+  // Draggable hook
+  const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
+    'settings-panel',
+    { x: 16, y: 16 }
+  );
+
   const updateSetting = (key, value) => {
     onSettingsChange({
       ...settings,
@@ -149,8 +156,20 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
   }));
 
   return (
-    <div className="fixed top-4 left-4 z-50 w-64 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl">
-      <div className="p-5">
+    <div 
+      ref={setRef}
+      className={`w-64 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
+      style={{ ...containerStyle, zIndex: isDragging ? 1000 : 50 }}
+    >
+      {/* Drag Handle */}
+      <div 
+        {...dragHandleProps}
+        className="flex items-center justify-center py-1.5 cursor-grab active:cursor-grabbing hover:bg-white/5 rounded-t-2xl transition-colors"
+      >
+        <GripVertical className="h-4 w-4 text-foreground/30 rotate-90" />
+      </div>
+
+      <div className="px-5 pb-5">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <span className="text-sm font-medium text-foreground/90">Parametres</span>
