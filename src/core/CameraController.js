@@ -44,9 +44,15 @@ class CameraController {
     this.onTouchMove = this.onTouchMove.bind(this);
     this.onTouchEnd = this.onTouchEnd.bind(this);
 
+    // Cursor timeout reference
+    this.cursorTimeout = null;
+
     // Initialize
     this.addEventListeners();
     this.updateCameraPosition();
+
+    // Set default cursor
+    this.domElement.style.cursor = 'grab';
   }
 
   addEventListeners() {
@@ -78,6 +84,7 @@ class CameraController {
       x: event.clientX,
       y: event.clientY,
     };
+    this.domElement.style.cursor = 'grabbing';
   }
 
   onMouseMove(event) {
@@ -103,6 +110,7 @@ class CameraController {
 
   onMouseUp() {
     this.isRotating = false;
+    this.domElement.style.cursor = 'grab';
   }
 
   onWheel(event) {
@@ -113,6 +121,21 @@ class CameraController {
       this.minDistance,
       Math.min(this.maxDistance, this.distance + delta)
     );
+
+    // Update cursor based on zoom direction
+    if (event.deltaY < 0) {
+      // Zoom in
+      this.domElement.style.cursor = 'zoom-in';
+    } else {
+      // Zoom out
+      this.domElement.style.cursor = 'zoom-out';
+    }
+
+    // Reset cursor after a short delay
+    clearTimeout(this.cursorTimeout);
+    this.cursorTimeout = setTimeout(() => {
+      this.domElement.style.cursor = 'grab';
+    }, 150);
   }
 
   onTouchStart(event) {
@@ -189,6 +212,7 @@ class CameraController {
 
   destroy() {
     this.removeEventListeners();
+    clearTimeout(this.cursorTimeout);
   }
 }
 
