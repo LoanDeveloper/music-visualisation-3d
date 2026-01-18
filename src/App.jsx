@@ -4,6 +4,7 @@ import AudioUploader from '@/components/AudioUploader';
 import ControlPanel from '@/components/ControlPanel';
 import ThemeSelector from '@/components/ThemeSelector';
 import FullscreenButton from '@/components/FullscreenButton';
+import ZoomControl from '@/components/ZoomControl';
 import SettingsPanel from '@/components/SettingsPanel';
 import useAudioAnalysis from '@/hooks/useAudioAnalysis';
 import './App.css';
@@ -223,6 +224,9 @@ function App() {
           <FullscreenButton />
         </>
       )}
+
+      {/* Zoom Control - always visible when scene is ready */}
+      <ZoomControl sceneRef={sceneRef} />
 
       {/* Keyboard shortcuts hint */}
       {audioUrl && (

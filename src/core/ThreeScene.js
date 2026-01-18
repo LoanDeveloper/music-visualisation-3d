@@ -228,6 +228,27 @@ class ThreeScene {
   }
 
   /**
+   * Get current zoom level (0-1)
+   * @returns {number}
+   */
+  getZoom() {
+    if (this.cameraController) {
+      return this.cameraController.getZoom();
+    }
+    return 0.5;
+  }
+
+  /**
+   * Set zoom level (0-1)
+   * @param {number} value
+   */
+  setZoom(value) {
+    if (this.cameraController) {
+      this.cameraController.setZoom(value);
+    }
+  }
+
+  /**
    * Clean up resources
    */
   destroy() {

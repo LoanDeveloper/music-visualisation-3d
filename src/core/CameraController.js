@@ -16,8 +16,8 @@ class CameraController {
 
     // Camera position (spherical coordinates)
     this.distance = 300;
-    this.minDistance = 100;
-    this.maxDistance = 500;
+    this.minDistance = 50;
+    this.maxDistance = 1200;
 
     // Rotation constraints
     this.minPolarAngle = 0; // radians
@@ -208,6 +208,36 @@ class CameraController {
     this.rotation = { x: 0, y: 0 };
     this.distance = 300;
     this.updateCameraPosition();
+  }
+
+  /**
+   * Get current zoom level (0-1, where 0 is max zoom out, 1 is max zoom in)
+   */
+  getZoom() {
+    // Inverse: closer distance = higher zoom value
+    return 1 - (this.distance - this.minDistance) / (this.maxDistance - this.minDistance);
+  }
+
+  /**
+   * Set zoom level (0-1, where 0 is max zoom out, 1 is max zoom in)
+   */
+  setZoom(value) {
+    // Clamp value between 0 and 1
+    const clampedValue = Math.max(0, Math.min(1, value));
+    // Inverse: higher value = closer distance
+    this.distance = this.maxDistance - clampedValue * (this.maxDistance - this.minDistance);
+    this.updateCameraPosition();
+  }
+
+  /**
+   * Get zoom constraints
+   */
+  getZoomRange() {
+    return {
+      min: this.minDistance,
+      max: this.maxDistance,
+      current: this.distance,
+    };
   }
 
   destroy() {
