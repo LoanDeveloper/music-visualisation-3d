@@ -6,6 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { GripVertical } from 'lucide-react';
+import { useDraggable } from '@/hooks/useDraggable';
 
 /**
  * Color preview dots for a palette
@@ -35,10 +37,28 @@ const ColorPreview = ({ palette }) => {
 const ThemeSelector = ({ currentTheme, onThemeChange }) => {
   const paletteNames = getPaletteNames();
 
+  // Draggable hook - top-right default position
+  const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
+    'theme-selector',
+    { x: typeof window !== 'undefined' ? window.innerWidth - 220 : 1000, y: 16 }
+  );
+
   return (
-    <div className="fixed top-4 right-16 z-10">
+    <div 
+      ref={setRef}
+      className={`flex items-center gap-1 rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
+      style={{ ...containerStyle, zIndex: isDragging ? 1000 : 10 }}
+    >
+      {/* Drag Handle */}
+      <div 
+        {...dragHandleProps}
+        className="flex items-center justify-center px-1.5 py-2 cursor-grab active:cursor-grabbing hover:bg-white/5 rounded-l-xl transition-colors"
+      >
+        <GripVertical className="h-4 w-4 text-foreground/30" />
+      </div>
+
       <Select value={currentTheme} onValueChange={onThemeChange}>
-        <SelectTrigger className="w-44 bg-black/40 backdrop-blur-xl border-white/10 text-foreground/90">
+        <SelectTrigger className="w-44 bg-transparent border-0 text-foreground/90 focus:ring-0 focus:ring-offset-0">
           <div className="flex items-center gap-2">
             <ColorPreview palette={palettes[currentTheme]} />
             <SelectValue />

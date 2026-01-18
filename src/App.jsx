@@ -267,18 +267,16 @@ function App() {
 
       {/* Human Layer Controls */}
       {audioUrl && (
-        <div className="human-layer-panel">
-          <HumanLayerControls
-            enabled={humanLayerEnabled}
-            onEnabledChange={handleHumanLayerEnabledChange}
-            preset={humanPreset}
-            onPresetChange={handleHumanPresetChange}
-            pose={humanPose}
-            onPoseChange={handleHumanPoseChange}
-            isLoading={humanLayerLoading}
-            hasError={humanLayerError}
-          />
-        </div>
+        <HumanLayerControls
+          enabled={humanLayerEnabled}
+          onEnabledChange={handleHumanLayerEnabledChange}
+          preset={humanPreset}
+          onPresetChange={handleHumanPresetChange}
+          pose={humanPose}
+          onPoseChange={handleHumanPoseChange}
+          isLoading={humanLayerLoading}
+          hasError={humanLayerError}
+        />
       )}
 
       {/* UI Overlay */}

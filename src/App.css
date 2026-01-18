@@ -73,3 +73,86 @@ body {
   color: rgba(255, 255, 255, 0.3);
   text-align: center;
 }
+
+/* ============================================
+   Draggable Panel Styles (Notion-like)
+   ============================================ */
+
+.draggable-panel {
+  /* Base positioning handled by inline styles */
+}
+
+.draggable-panel.is-dragging {
+  /* Slight scale up and shadow while dragging */
+  transform: scale(1.01);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.draggable-panel-content {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+/* Drag Handle - Top position (horizontal bar) */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  touch-action: none;
+}
+
+.drag-handle:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.drag-handle.is-dragging {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.drag-handle-top {
+  width: 100%;
+  height: 20px;
+  cursor: grab;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -4px;
+}
+
+.drag-handle-top:active,
+.drag-handle-top.is-dragging {
+  cursor: grabbing;
+}
+
+.drag-handle-left {
+  width: 20px;
+  min-height: 40px;
+  cursor: grab;
+  border-radius: 8px 0 0 8px;
+  margin-right: -4px;
+  flex-shrink: 0;
+}
+
+.drag-handle-left:active,
+.drag-handle-left.is-dragging {
+  cursor: grabbing;
+}
+
+.drag-handle-icon {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.drag-handle:hover .drag-handle-icon,
+.drag-handle.is-dragging .drag-handle-icon {
+  opacity: 1;
+}
+
+/* Make sure panels have rounded corners and proper backgrounds */
+.draggable-panel > .draggable-panel-content > *:not(.drag-handle) {
+  flex: 1;
+}
