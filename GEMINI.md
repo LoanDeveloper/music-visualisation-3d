@@ -1,5 +1,7 @@
 # Music Visualisation 3D - AI Project Guide
 
+> **IMPORTANT**: Before starting any development task, read the rules in `.rules/` directory, especially `08-workflows.md` for commit conventions and development workflows.
+
 ## Project summary
 Real-time 3D music visualization web app. The user uploads an audio file and a particle system reacts to bass/mid/high frequency bands. UI includes audio controls, theme selector, fullscreen, and keyboard shortcuts (Space, F, 1-5).
 
