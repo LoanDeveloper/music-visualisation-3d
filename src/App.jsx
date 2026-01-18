@@ -48,6 +48,12 @@ const DEFAULT_SETTINGS = {
   spectralColorMode: 'none',
   spectralColorIntensity: 0.5,
   enableChroma: false,
+  // Stereo
+  stereoEnabled: true,
+  stereoWidthEffect: 1.0,
+  stereoPanningEffect: 1.0,
+  stereoSeparation: true,
+  stereoColorIntensity: 0.7,
 };
 
 function App() {

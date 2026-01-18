@@ -40,6 +40,12 @@ class ParticleSystem {
       spectralColorIntensity: 0.5,  // How much spectral color affects particles
       onsetFlash: true,             // Flash on note onsets
       rmsScale: true,               // Scale system based on RMS energy
+      // Stereo settings
+      stereoEnabled: true,          // Enable stereo visual effects
+      stereoWidthEffect: 1.0,       // Intensity of stereo width expansion (0-2)
+      stereoPanningEffect: 1.0,     // Intensity of panning rotation (0-2)
+      stereoSeparation: true,       // Enable L/R particle separation
+      stereoColorIntensity: 0.7,    // Intensity of L/R color tinting (0-1)
       ...settings,
     };
 
@@ -53,6 +59,11 @@ class ParticleSystem {
     // Onset flash state
     this.onsetFlash = 0;
     this.onsetDecay = 0.85;
+
+    // Stereo state
+    this.stereoPan = 0;         // Current panning position (-1 to +1)
+    this.stereoWidth = 0;       // Current stereo width (0 to 1)
+    this.stereoRotation = 0;    // Cumulative rotation from panning
 
     // Particles per group (roughly equal distribution)
     this.bassCount = Math.floor(particleCount * 0.33);
@@ -875,6 +886,42 @@ class ParticleSystem {
     const onsetIntensity = frequencyBands.onsetIntensity || 0;
     const dominantPitch = frequencyBands.dominantPitch || null;
     
+    // Extract stereo metrics
+    const stereo = frequencyBands.stereo || null;
+    const stereoEnabled = stereo && stereo.stereoEnabled && this.settings.stereoEnabled;
+    
+    // Update stereo state with smoothing
+    if (stereoEnabled) {
+      const targetWidth = stereo.stereoWidth * this.settings.stereoWidthEffect;
+      const targetPan = stereo.panning * this.settings.stereoPanningEffect;
+      
+      // Less smoothing for more reactive response
+      this.stereoWidth = this.stereoWidth * 0.7 + targetWidth * 0.3;
+      this.stereoPan = this.stereoPan * 0.7 + targetPan * 0.3;
+      
+      // Accumulate rotation from panning (more pronounced)
+      this.stereoRotation += this.stereoPan * 0.05;
+    } else {
+      this.stereoWidth *= 0.95; // Decay to zero when disabled
+      this.stereoPan *= 0.95;
+    }
+    
+    // Store stereo channel energies for use in particle loop
+    let leftEnergy = 0, rightEnergy = 0;
+    let leftBass = 0, leftMid = 0, leftHigh = 0;
+    let rightBass = 0, rightMid = 0, rightHigh = 0;
+    
+    if (stereoEnabled && stereo.left && stereo.right) {
+      leftBass = stereo.left.bass || 0;
+      leftMid = stereo.left.mid || 0;
+      leftHigh = stereo.left.high || 0;
+      rightBass = stereo.right.bass || 0;
+      rightMid = stereo.right.mid || 0;
+      rightHigh = stereo.right.high || 0;
+      leftEnergy = (leftBass + leftMid + leftHigh) / 3;
+      rightEnergy = (rightBass + rightMid + rightHigh) / 3;
+    }
+    
     const positions = this.geometry.attributes.position.array;
     const colors = this.geometry.attributes.color.array;
 
@@ -907,10 +954,11 @@ class ParticleSystem {
       spectralColor = pitchClassToColor(dominantPitch.pitchClass);
     }
 
-    // Global rotation (enhanced by beat)
+    // Global rotation (enhanced by beat and stereo panning)
     const rotSpeed = this.settings.rotationSpeed;
     const beatRotBoost = this.beatPulse * 0.02;
-    this.points.rotation.y += rotSpeed + mid * rotSpeed * 5 + beatRotBoost;
+    const stereoRotBoost = stereoEnabled ? this.stereoPan * 0.04 : 0;
+    this.points.rotation.y += rotSpeed + mid * rotSpeed * 5 + beatRotBoost + stereoRotBoost;
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
@@ -1019,6 +1067,22 @@ class ParticleSystem {
         positions[i3] = baseX + offsetX;
         positions[i3 + 1] = baseY + offsetY;
         positions[i3 + 2] = baseZ + offsetZ;
+        
+        // ============ Subtle Stereo Position Effect ============
+        if (stereoEnabled && this.settings.stereoSeparation) {
+          const isLeftSide = positions[i3] < 0;
+          const stereoIntensity = this.settings.stereoWidthEffect * 0.3; // Reduced spatial effect
+          
+          // Gentle per-channel movement (not too spread out)
+          if (isLeftSide) {
+            positions[i3] -= leftEnergy * 15 * stereoIntensity;
+          } else {
+            positions[i3] += rightEnergy * 15 * stereoIntensity;
+          }
+          
+          // Subtle panning drift
+          positions[i3] += this.stereoPan * 10 * stereoIntensity;
+        }
       }
 
       // ============ Apply Color with Advanced Features ============
@@ -1042,6 +1106,51 @@ class ParticleSystem {
         finalB = baseColor[2];
       }
       
+      // ============ Enhanced Stereo Color & Brightness Effects ============
+      if (stereoEnabled && this.settings.stereoSeparation) {
+        const isLeftSide = positions[i3] < 0;
+        const stereoColorIntensity = this.settings.stereoColorIntensity || 0.7;
+        
+        // Calculate channel-specific intensity for reactive brightness
+        const channelEnergy = isLeftSide ? leftEnergy : rightEnergy;
+        const channelBass = isLeftSide ? leftBass : rightBass;
+        const channelMid = isLeftSide ? leftMid : rightMid;
+        const channelHigh = isLeftSide ? leftHigh : rightHigh;
+        
+        // Reactive brightness based on channel energy (opacity effect via brightness)
+        const channelBrightness = 0.6 + channelEnergy * 1.5;
+        brightness *= channelBrightness;
+        
+        // Color shifts based on frequencies
+        if (isLeftSide) {
+          // Left: Cyan/Blue palette - reacts to left channel
+          const blueShift = stereoColorIntensity * (0.3 + channelEnergy * 0.7);
+          const cyanShift = stereoColorIntensity * channelHigh * 0.5;
+          const purpleShift = stereoColorIntensity * channelBass * 0.4;
+          
+          finalR *= (1 - blueShift * 0.5 + purpleShift);
+          finalG *= (1 + cyanShift * 0.6 + channelMid * 0.3);
+          finalB *= (1 + blueShift * 0.8);
+        } else {
+          // Right: Orange/Red palette - reacts to right channel
+          const redShift = stereoColorIntensity * (0.3 + channelEnergy * 0.7);
+          const yellowShift = stereoColorIntensity * channelHigh * 0.5;
+          const orangeShift = stereoColorIntensity * channelMid * 0.4;
+          
+          finalR *= (1 + redShift * 0.8);
+          finalG *= (1 + yellowShift * 0.5 + orangeShift * 0.3);
+          finalB *= (1 - redShift * 0.5);
+        }
+        
+        // Extra sparkle on high energy moments
+        if (channelEnergy > 0.6) {
+          const sparkle = 1 + (channelEnergy - 0.6) * 1.5;
+          finalR *= sparkle;
+          finalG *= sparkle;
+          finalB *= sparkle;
+        }
+      }
+      
       // Apply brightness and beat pulse color boost
       const beatColorBoost = 1 + this.beatPulse * 0.5;
       colors[i3] = Math.min(finalR * brightness * beatColorBoost, 1.0);
@@ -1052,13 +1161,27 @@ class ParticleSystem {
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.attributes.color.needsUpdate = true;
 
-    // Update material size
+    // Update material size with stereo reactivity
     if (this.settings.reactiveSize) {
       const energy = (bass + mid + high) / 3;
       const beatSizeBoost = this.beatPulse * 3;
-      this.material.size = this.settings.particleSize + energy * 5 + beatSizeBoost;
+      
+      // Stereo size boost - particles grow with stereo width
+      let stereoSizeBoost = 0;
+      if (stereoEnabled) {
+        const maxChannelEnergy = Math.max(leftEnergy, rightEnergy);
+        stereoSizeBoost = this.stereoWidth * 2 + maxChannelEnergy * 2;
+      }
+      
+      this.material.size = this.settings.particleSize + energy * 5 + beatSizeBoost + stereoSizeBoost;
     } else {
       this.material.size = this.settings.particleSize;
+    }
+    
+    // Update material opacity based on stereo activity
+    if (stereoEnabled && this.material) {
+      const stereoOpacity = 0.7 + this.stereoWidth * 0.3 + Math.max(leftEnergy, rightEnergy) * 0.2;
+      this.material.opacity = Math.min(stereoOpacity, 1.0);
     }
 
     // Update trails

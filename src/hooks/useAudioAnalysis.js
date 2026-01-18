@@ -140,6 +140,9 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
         // Optional chroma features
         chroma: fullAnalysis.chroma,
         dominantPitch: fullAnalysis.dominantPitch,
+        
+        // Stereo analysis
+        stereo: fullAnalysis.stereo,
       };
 
       // Log every 120 frames (~2 seconds at 60fps)

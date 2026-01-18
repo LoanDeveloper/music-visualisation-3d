@@ -512,6 +512,53 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
         {/* Divider */}
         <div className="h-px bg-white/10 mb-5" />
 
+        {/* Stereo Analysis Section */}
+        <div className="space-y-3 mb-5">
+          <SectionTitle>Stereo</SectionTitle>
+          
+          <SwitchControl
+            label="Effets stereo"
+            checked={settings.stereoEnabled}
+            onChange={(v) => updateSetting('stereoEnabled', v)}
+          />
+          {settings.stereoEnabled && (
+            <>
+              <SwitchControl
+                label="Separation L/R"
+                checked={settings.stereoSeparation}
+                onChange={(v) => updateSetting('stereoSeparation', v)}
+              />
+              <SliderControl
+                label="Largeur stereo"
+                value={settings.stereoWidthEffect}
+                min={0}
+                max={2}
+                step={0.1}
+                onChange={(v) => updateSetting('stereoWidthEffect', v)}
+              />
+              <SliderControl
+                label="Effet panning"
+                value={settings.stereoPanningEffect}
+                min={0}
+                max={2}
+                step={0.1}
+                onChange={(v) => updateSetting('stereoPanningEffect', v)}
+              />
+              <SliderControl
+                label="Couleurs L/R"
+                value={settings.stereoColorIntensity}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(v) => updateSetting('stereoColorIntensity', v)}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/10 mb-5" />
+
         {/* Animation Section */}
         <div className="space-y-3">
           <SectionTitle>Animation</SectionTitle>
