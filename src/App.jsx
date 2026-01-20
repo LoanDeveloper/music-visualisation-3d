@@ -9,55 +9,11 @@ import SettingsPanel from '@/components/SettingsPanel';
 import HumanLayerControls from '@/components/HumanLayerControls';
 import useAudioAnalysis from '@/hooks/useAudioAnalysis';
 import { DEFAULT_PRESET, DEFAULT_POSE } from '@/utils/humanPresets';
+import { getDefaultSettings } from '@/utils/settingsSchema';
 import './App.css';
 
-// Default visualization settings - balanced for all frequencies
-const DEFAULT_SETTINGS = {
-  // Audio - higher sensitivity and balanced frequency response
-  sensitivity: 1.5,
-  bassIntensity: 1.4,
-  midIntensity: 1.6,
-  highIntensity: 1.8,
-  smoothing: 0.65,
-  // Particles
-  particleCount: 12000,
-  particleSize: 3,
-  particleShape: 'circle',
-  reactiveSize: true,
-  // Animation
-  rotationSpeed: 0.003,
-  animationSpeed: 1.0,
-  // Distribution shape
-  shape: 'sphere',
-  expansion: 1.0,
-  // Trails
-  trails: false,
-  trailLength: 8,
-  trailDecay: 0.92,
-  trailWidth: 1,
-  // Connections
-  connections: false,
-  connectionDistance: 30,
-  connectionOpacity: 0.3,
-  connectionMaxCount: 500,
-  connectionLineWidth: 1,
-  // Advanced Analysis
-  beatReactive: true,
-  beatPulseIntensity: 1.0,
-  beatSensitivity: 1.0,
-  onsetFlash: true,
-  onsetSensitivity: 1.0,
-  rmsScale: true,
-  spectralColorMode: 'none',
-  spectralColorIntensity: 0.5,
-  enableChroma: false,
-  // Stereo
-  stereoEnabled: true,
-  stereoWidthEffect: 1.0,
-  stereoPanningEffect: 1.0,
-  stereoSeparation: true,
-  stereoColorIntensity: 0.7,
-};
+// Get default settings from central schema (single source of truth)
+const DEFAULT_SETTINGS = getDefaultSettings();
 
 function App() {
   const [audioUrl, setAudioUrl] = useState(null);
