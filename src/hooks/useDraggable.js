@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 const STORAGE_KEY = 'panel-positions';
 
+// Animation duration for snap-back
+const SNAP_ANIMATION_DURATION = 200;
+
 /**
  * Load all panel positions from localStorage
  * @returns {Object} - { panelId: { x, y }, ... }
@@ -34,10 +37,11 @@ function savePositions(positions) {
  * @param {Object} defaultPosition - { x, y } default position
  * @param {Object} options - Additional options
  * @param {boolean} options.constrainToViewport - Keep panel within viewport bounds
- * @returns {Object} - { position, isDragging, dragHandleProps, resetPosition }
+ * @param {boolean} options.snapBack - Animate snap-back when released outside safe zone
+ * @returns {Object} - { position, isDragging, dragHandleProps, resetPosition, isSnapping }
  */
 export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options = {}) {
-  const { constrainToViewport = true } = options;
+  const { constrainToViewport = true, snapBack = true } = options;
   
   // Initialize position from localStorage or default
   const [position, setPosition] = useState(() => {
@@ -46,6 +50,7 @@ export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options 
   });
   
   const [isDragging, setIsDragging] = useState(false);
+  const [isSnapping, setIsSnapping] = useState(false);
   
   // Refs for tracking drag state (avoid stale closures)
   const dragStartRef = useRef({ x: 0, y: 0 });
@@ -53,7 +58,38 @@ export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options 
   const elementRef = useRef(null);
   
   /**
-   * Constrain position to viewport bounds
+   * Check if position is within safe bounds
+   */
+  const isInSafeBounds = useCallback((x, y) => {
+    if (!elementRef.current) return true;
+    
+    const rect = elementRef.current.getBoundingClientRect();
+    const safeMargin = 50; // Panel should have at least 50px inside viewport
+    
+    // Check if enough of the panel is visible
+    const visibleWidth = Math.min(rect.width, window.innerWidth - x) - Math.max(0, -x);
+    const visibleHeight = Math.min(rect.height, window.innerHeight - y) - Math.max(0, -y);
+    
+    return visibleWidth >= safeMargin && visibleHeight >= safeMargin && y >= 0;
+  }, []);
+  
+  /**
+   * Get safe position (constrained to viewport)
+   */
+  const getSafePosition = useCallback((x, y) => {
+    if (!elementRef.current) return { x, y };
+    
+    const rect = elementRef.current.getBoundingClientRect();
+    const padding = 16;
+    
+    const safeX = Math.max(padding, Math.min(window.innerWidth - rect.width - padding, x));
+    const safeY = Math.max(padding, Math.min(window.innerHeight - rect.height - padding, y));
+    
+    return { x: safeX, y: safeY };
+  }, []);
+  
+  /**
+   * Constrain position to viewport bounds (during drag)
    */
   const constrainPosition = useCallback((x, y) => {
     if (!constrainToViewport || !elementRef.current) {
@@ -89,19 +125,32 @@ export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options 
   }, [constrainPosition]);
   
   /**
-   * Handle drag end
+   * Handle drag end with optional snap-back
    */
   const handleEnd = useCallback(() => {
     setIsDragging(false);
     
-    // Save to localStorage
     setPosition((current) => {
+      let finalPosition = current;
+      
+      // Check if snap-back is needed
+      if (snapBack && !isInSafeBounds(current.x, current.y)) {
+        const safePos = getSafePosition(current.x, current.y);
+        finalPosition = safePos;
+        
+        // Trigger snap animation
+        setIsSnapping(true);
+        setTimeout(() => setIsSnapping(false), SNAP_ANIMATION_DURATION);
+      }
+      
+      // Save to localStorage
       const allPositions = loadPositions();
-      allPositions[panelId] = current;
+      allPositions[panelId] = finalPosition;
       savePositions(allPositions);
-      return current;
+      
+      return finalPosition;
     });
-  }, [panelId]);
+  }, [panelId, snapBack, isInSafeBounds, getSafePosition]);
   
   /**
    * Mouse event handlers
@@ -199,11 +248,13 @@ export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options 
     left: position.x,
     top: position.y,
     zIndex: isDragging ? 1000 : undefined, // Bring to front while dragging
+    transition: isSnapping ? `left ${SNAP_ANIMATION_DURATION}ms ease-out, top ${SNAP_ANIMATION_DURATION}ms ease-out` : undefined,
   };
   
   return {
     position,
     isDragging,
+    isSnapping,
     dragHandleProps,
     containerStyle,
     resetPosition,
