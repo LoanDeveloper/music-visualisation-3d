@@ -34,6 +34,11 @@ const MIN_BEAT_INTERVAL = 200; // ms between beats (300 BPM max)
 let onsetHistory = [];
 const ONSET_HISTORY_LENGTH = 10;
 let onsetThreshold = 0.15;
+// Pre-allocated sorted buffer for onset detection (avoids allocation per frame)
+let onsetSortBuffer = new Float32Array(ONSET_HISTORY_LENGTH);
+
+// Pre-allocated chroma buffer (avoids allocation per frame)
+const chromaBuffer = new Float32Array(12);
 
 // Smoothing factors
 const SMOOTHING = {
@@ -231,6 +236,7 @@ export const detectBeat = (frequencyData, sensitivity = 1.0) => {
 /**
  * Detect onsets (note attacks, transients)
  * More sensitive than beat detection, catches individual notes
+ * Uses insertion sort on pre-allocated buffer to avoid allocations
  * @param {number} spectralFlux - Current spectral flux value
  * @param {number} sensitivity - Detection sensitivity (0.5-2.0)
  * @returns {Object} { isOnset: boolean, onsetIntensity: number }
@@ -241,9 +247,25 @@ export const detectOnset = (spectralFlux, sensitivity = 1.0) => {
     onsetHistory.shift();
   }
 
-  // Calculate median of history
-  const sorted = [...onsetHistory].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
+  // Calculate median using pre-allocated buffer with insertion sort
+  // This avoids creating new arrays every frame
+  const len = onsetHistory.length;
+  for (let i = 0; i < len; i++) {
+    onsetSortBuffer[i] = onsetHistory[i];
+  }
+  
+  // Insertion sort (faster for small arrays, no allocation)
+  for (let i = 1; i < len; i++) {
+    const key = onsetSortBuffer[i];
+    let j = i - 1;
+    while (j >= 0 && onsetSortBuffer[j] > key) {
+      onsetSortBuffer[j + 1] = onsetSortBuffer[j];
+      j--;
+    }
+    onsetSortBuffer[j + 1] = key;
+  }
+  
+  const median = onsetSortBuffer[Math.floor(len / 2)];
 
   // Adaptive threshold
   const threshold = median * (1.5 / sensitivity) + 0.05;
@@ -319,14 +341,16 @@ export const calculateSpectralRolloff = (frequencyData, rolloffPercent = 0.85) =
 /**
  * Calculate Chroma Features (12-note pitch class energy)
  * Maps all frequencies to their corresponding pitch class (C, C#, D, etc.)
+ * Uses pre-allocated buffer to avoid per-frame allocations
  * @param {Uint8Array} frequencyData - FFT frequency data
  * @returns {Float32Array} 12-element array with energy for each pitch class
  */
 export const calculateChromaFeatures = (frequencyData) => {
-  const chroma = new Float32Array(12);
+  // Reset pre-allocated buffer
+  chromaBuffer.fill(0);
   
   if (!frequencyData || frequencyData.length === 0) {
-    return chroma;
+    return chromaBuffer;
   }
 
   // For each frequency bin, determine which pitch class it belongs to
@@ -344,22 +368,22 @@ export const calculateChromaFeatures = (frequencyData) => {
     
     // Add energy to this pitch class
     if (pitchClass >= 0 && pitchClass < 12) {
-      chroma[pitchClass] += frequencyData[i];
+      chromaBuffer[pitchClass] += frequencyData[i];
     }
   }
 
   // Normalize chroma vector
   let maxChroma = 0;
   for (let i = 0; i < 12; i++) {
-    if (chroma[i] > maxChroma) maxChroma = chroma[i];
+    if (chromaBuffer[i] > maxChroma) maxChroma = chromaBuffer[i];
   }
   if (maxChroma > 0) {
     for (let i = 0; i < 12; i++) {
-      chroma[i] /= maxChroma;
+      chromaBuffer[i] /= maxChroma;
     }
   }
 
-  return chroma;
+  return chromaBuffer;
 };
 
 /**

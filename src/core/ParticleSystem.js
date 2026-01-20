@@ -77,7 +77,11 @@ class ParticleSystem {
     this.particlePhases = new Float32Array(particleCount); // For animation
 
     // Trail history (for each particle, store last N positions)
-    this.trailHistory = [];
+    // Note: Ring buffer arrays are created in createTrailSystem()
+    this.trailPositionBuffers = null;
+    this.trailAlphaBuffers = null;
+    this.trailHeadIndices = null;
+    this.trailLengths = null;
     this.trailGeometry = null;
     this.trailMaterial = null;
     this.trailLines = null;
@@ -777,19 +781,14 @@ class ParticleSystem {
     this.points = new THREE.Points(this.geometry, this.material);
     this.scene.add(this.points);
 
-    // Initialize trail history
-    if (this.settings.trails) {
-      this.trailHistory = [];
-      for (let i = 0; i < this.particleCount; i++) {
-        this.trailHistory.push([]);
-      }
-    }
+    // Note: Trail ring buffers are now initialized in createTrailSystem()
 
     console.log(`[ParticleSystem] Created ${this.particleCount} particles (Shape: ${this.settings.shape}, Particle: ${this.settings.particleShape})`);
   }
 
   /**
    * Create trail system for particles
+   * Uses pre-allocated ring buffers to avoid per-frame allocations
    */
   createTrailSystem() {
     // Use a subset of particles for trails (performance)
@@ -802,7 +801,6 @@ class ParticleSystem {
     this.trailGeometry = new THREE.BufferGeometry();
     const trailPositions = new Float32Array(maxVertices);
     const trailColors = new Float32Array(maxVertices);
-    const trailAlphas = new Float32Array(maxVertices / 3); // Per-vertex alpha
     
     this.trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     this.trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
@@ -819,23 +817,28 @@ class ParticleSystem {
     this.scene.add(this.trailLines);
     
     // Store which particles have trails
-    this.trailParticleIndices = [];
+    this.trailParticleIndices = new Uint32Array(trailParticleCount);
     const step = Math.floor(this.particleCount / trailParticleCount);
     for (let i = 0; i < trailParticleCount; i++) {
-      this.trailParticleIndices.push(i * step);
+      this.trailParticleIndices[i] = i * step;
     }
     
-    // Initialize trail history for all particles
-    this.trailHistory = [];
-    for (let i = 0; i < this.particleCount; i++) {
-      this.trailHistory.push([]);
-    }
+    // Pre-allocate trail ring buffers (allocation-free per frame)
+    // Each trail particle has a fixed-size buffer for positions and alphas
+    this.trailPositionBuffers = new Float32Array(trailParticleCount * trailLength * 3);
+    this.trailAlphaBuffers = new Float32Array(trailParticleCount * trailLength);
+    this.trailHeadIndices = new Uint8Array(trailParticleCount); // Ring buffer head
+    this.trailLengths = new Uint8Array(trailParticleCount); // Current length per trail
     
-    // Trail alphas for decay
-    this.trailAlphas = new Float32Array(trailParticleCount * trailLength);
-    this.trailAlphas.fill(1.0);
+    // Initialize all alphas to 0 (empty)
+    this.trailAlphaBuffers.fill(0);
+    this.trailHeadIndices.fill(0);
+    this.trailLengths.fill(0);
     
-    console.log(`[ParticleSystem] Trail system created for ${trailParticleCount} particles`);
+    // Store trail length setting for update
+    this.trailMaxLength = trailLength;
+    
+    console.log(`[ParticleSystem] Trail system created for ${trailParticleCount} particles (ring buffers)`);
   }
 
   /**
@@ -1201,10 +1204,11 @@ class ParticleSystem {
   updateTrails(positions, colors) {
     if (!this.trailGeometry || !this.trailParticleIndices) return;
     
-    const trailLength = this.settings.trailLength;
+    const trailLength = this.trailMaxLength;
     const trailDecay = this.settings.trailDecay;
     const trailPositions = this.trailGeometry.attributes.position.array;
     const trailColors = this.trailGeometry.attributes.color.array;
+    const trailParticleCount = this.trailParticleIndices.length;
     
     // Increment frame counter - only add new positions every few frames for smoother trails
     this.trailFrameCounter = (this.trailFrameCounter || 0) + 1;
@@ -1212,64 +1216,80 @@ class ParticleSystem {
     
     let vertexIndex = 0;
     
-    for (let i = 0; i < this.trailParticleIndices.length; i++) {
+    for (let i = 0; i < trailParticleCount; i++) {
       const particleIndex = this.trailParticleIndices[i];
       const i3 = particleIndex * 3;
       
-      // Get or create history array
-      if (!this.trailHistory[particleIndex]) {
-        this.trailHistory[particleIndex] = [];
-      }
-      const history = this.trailHistory[particleIndex];
+      // Ring buffer indices for this trail particle
+      const bufferOffset = i * trailLength;
+      const bufferOffset3 = bufferOffset * 3;
       
-      // Add current position to history (with timestamp for decay)
+      // Apply decay to all trail points in this particle's buffer
+      for (let j = 0; j < trailLength; j++) {
+        const alphaIdx = bufferOffset + j;
+        if (this.trailAlphaBuffers[alphaIdx] > 0) {
+          this.trailAlphaBuffers[alphaIdx] *= trailDecay;
+          if (this.trailAlphaBuffers[alphaIdx] < 0.05) {
+            this.trailAlphaBuffers[alphaIdx] = 0;
+            if (this.trailLengths[i] > 0) this.trailLengths[i]--;
+          }
+        }
+      }
+      
+      // Add current position to ring buffer
       if (addNewPosition) {
-        history.unshift({
-          pos: [positions[i3], positions[i3 + 1], positions[i3 + 2]],
-          alpha: 1.0,
-        });
+        const head = this.trailHeadIndices[i];
+        const posOffset = bufferOffset3 + head * 3;
+        
+        // Store new position at head
+        this.trailPositionBuffers[posOffset] = positions[i3];
+        this.trailPositionBuffers[posOffset + 1] = positions[i3 + 1];
+        this.trailPositionBuffers[posOffset + 2] = positions[i3 + 2];
+        this.trailAlphaBuffers[bufferOffset + head] = 1.0;
+        
+        // Advance head (ring buffer wrap)
+        this.trailHeadIndices[i] = (head + 1) % trailLength;
+        if (this.trailLengths[i] < trailLength) this.trailLengths[i]++;
       }
       
-      // Apply decay to all trail points
-      for (let j = 0; j < history.length; j++) {
-        history[j].alpha *= trailDecay;
-      }
+      // Read ring buffer in order (from oldest to newest) to create line segments
+      const len = this.trailLengths[i];
+      if (len < 2) continue;
       
-      // Remove points that are too faded
-      while (history.length > 0 && history[history.length - 1].alpha < 0.05) {
-        history.pop();
-      }
+      const head = this.trailHeadIndices[i];
       
-      // Limit history length
-      while (history.length > trailLength) {
-        history.pop();
-      }
+      // Get color based on particle group
+      const color = this.particleGroups[particleIndex] === 0 ? this.bandColors.bass :
+                   (this.particleGroups[particleIndex] === 1 ? this.bandColors.mid : this.bandColors.high);
       
-      // Create line segments from history
-      for (let j = 0; j < history.length - 1; j++) {
-        const p1 = history[j];
-        const p2 = history[j + 1];
+      // Create line segments from ring buffer
+      for (let j = 0; j < len - 1; j++) {
+        // Oldest is at (head - len + trailLength) % trailLength
+        const idx1 = (head - len + j + trailLength) % trailLength;
+        const idx2 = (head - len + j + 1 + trailLength) % trailLength;
+        
+        const alpha1 = this.trailAlphaBuffers[bufferOffset + idx1];
+        const alpha2 = this.trailAlphaBuffers[bufferOffset + idx2];
+        
+        // Skip very faded segments
+        if (alpha1 < 0.05 && alpha2 < 0.05) continue;
+        
+        const p1Offset = bufferOffset3 + idx1 * 3;
+        const p2Offset = bufferOffset3 + idx2 * 3;
         
         // Skip if positions are the same (no movement)
-        const dx = p1.pos[0] - p2.pos[0];
-        const dy = p1.pos[1] - p2.pos[1];
-        const dz = p1.pos[2] - p2.pos[2];
+        const dx = this.trailPositionBuffers[p1Offset] - this.trailPositionBuffers[p2Offset];
+        const dy = this.trailPositionBuffers[p1Offset + 1] - this.trailPositionBuffers[p2Offset + 1];
+        const dz = this.trailPositionBuffers[p1Offset + 2] - this.trailPositionBuffers[p2Offset + 2];
         if (dx * dx + dy * dy + dz * dz < 0.01) continue;
         
-        trailPositions[vertexIndex] = p1.pos[0];
-        trailPositions[vertexIndex + 1] = p1.pos[1];
-        trailPositions[vertexIndex + 2] = p1.pos[2];
+        trailPositions[vertexIndex] = this.trailPositionBuffers[p1Offset];
+        trailPositions[vertexIndex + 1] = this.trailPositionBuffers[p1Offset + 1];
+        trailPositions[vertexIndex + 2] = this.trailPositionBuffers[p1Offset + 2];
         
-        trailPositions[vertexIndex + 3] = p2.pos[0];
-        trailPositions[vertexIndex + 4] = p2.pos[1];
-        trailPositions[vertexIndex + 5] = p2.pos[2];
-        
-        // Get color based on particle group with alpha decay
-        const color = this.particleGroups[particleIndex] === 0 ? this.bandColors.bass :
-                     (this.particleGroups[particleIndex] === 1 ? this.bandColors.mid : this.bandColors.high);
-        
-        const alpha1 = p1.alpha;
-        const alpha2 = p2.alpha;
+        trailPositions[vertexIndex + 3] = this.trailPositionBuffers[p2Offset];
+        trailPositions[vertexIndex + 4] = this.trailPositionBuffers[p2Offset + 1];
+        trailPositions[vertexIndex + 5] = this.trailPositionBuffers[p2Offset + 2];
         
         trailColors[vertexIndex] = color[0] * alpha1;
         trailColors[vertexIndex + 1] = color[1] * alpha1;
@@ -1405,7 +1425,11 @@ class ParticleSystem {
         this.trailGeometry.dispose();
         this.trailMaterial.dispose();
         this.trailLines = null;
-        this.trailHistory = [];
+        // Clear ring buffer arrays
+        this.trailPositionBuffers = null;
+        this.trailAlphaBuffers = null;
+        this.trailHeadIndices = null;
+        this.trailLengths = null;
       }
     }
 
