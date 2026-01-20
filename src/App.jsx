@@ -236,7 +236,7 @@ function App() {
       )}
 
       {/* UI Overlay */}
-      <AudioUploader onFileSelect={handleFileSelect} hasAudio={!!audioUrl} />
+      <AudioUploader onFileSelect={handleFileSelect} hasAudio={!!audioUrl} audioName={audioName} />
 
       {audioUrl && (
         <>
