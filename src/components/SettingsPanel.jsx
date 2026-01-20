@@ -199,7 +199,7 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
   const [customPresetName, setCustomPresetName] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [presets, setPresets] = useState(getAllPresets());
-  const [lowPowerMode, setLowPowerMode] = useState(false);
+  const [lowPowerMode, setLowPowerMode] = useState(() => performanceMonitor.isLowPowerMode());
   
   // Section open states - audio open by default
   const [openSections, setOpenSections] = useState({
@@ -225,7 +225,6 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
       setLowPowerMode(isLowPower);
     };
     performanceMonitor.onLowPowerChange(handleLowPowerChange);
-    setLowPowerMode(performanceMonitor.isLowPowerMode());
     
     return () => {
       performanceMonitor.offLowPowerChange(handleLowPowerChange);
