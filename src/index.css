@@ -26,27 +26,28 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Modern transparent dark theme */
+/* 100% Monochrome dark theme - no color accents */
 :root {
-  --background: oklch(0.1 0 0 / 0.8);
+  --background: oklch(0.08 0 0);
   --foreground: oklch(0.95 0 0);
   --card: oklch(0.12 0 0 / 0.6);
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.12 0 0 / 0.9);
+  --popover: oklch(0.1 0 0 / 0.95);
   --popover-foreground: oklch(0.95 0 0);
   --primary: oklch(0.95 0 0);
-  --primary-foreground: oklch(0.15 0 0);
-  --secondary: oklch(0.25 0 0 / 0.5);
+  --primary-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.2 0 0 / 0.6);
   --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.25 0 0 / 0.4);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.3 0 0 / 0.5);
+  --muted: oklch(0.2 0 0 / 0.5);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.25 0 0 / 0.6);
   --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  /* Destructive stays gray for monochrome */
+  --destructive: oklch(0.5 0 0);
   --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.4 0 0 / 0.3);
-  --input: oklch(0.2 0 0 / 0.5);
-  --ring: oklch(0.5 0 0 / 0.5);
+  --border: oklch(0.35 0 0 / 0.25);
+  --input: oklch(0.15 0 0 / 0.6);
+  --ring: oklch(0.45 0 0 / 0.5);
   --radius: 0.625rem;
 }
 
@@ -55,10 +56,31 @@
 }
 
 body {
-  background-color: var(--background);
+  background: 
+    /* Subtle noise texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"),
+    /* Radial gradient from center */
+    radial-gradient(ellipse at 50% 50%, oklch(0.12 0 0) 0%, oklch(0.06 0 0) 70%, oklch(0.04 0 0) 100%);
+  background-blend-mode: overlay, normal;
+  background-color: oklch(0.06 0 0);
   color: var(--foreground);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Noise overlay opacity */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.03;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: -1;
 }
