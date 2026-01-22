@@ -9,6 +9,38 @@
 - After core changes, test in browser with a real audio file.
 - Useful commands: npm run dev, npm run build, npm run preview.
 
+## Git branching workflow
+
+**IMPORTANT: Always base feature branches on `develop`, not `main`.**
+
+```bash
+# Start a new feature or fix
+git checkout develop
+git pull origin develop
+git checkout -b feat/my-feature  # or fix/my-bug
+
+# Work with regular commits...
+git add <files>
+git commit -m "type(scope): description"
+
+# When ready, push and create PR to develop
+git push -u origin feat/my-feature
+gh pr create --base develop --title "feat: my feature" --body "..."
+```
+
+### Branch naming
+- `feat/short-description` - New features
+- `fix/short-description` - Bug fixes
+- `refactor/short-description` - Code refactoring
+- `chore/short-description` - Build/tooling changes
+
+### PR workflow
+1. Create branch from `develop`
+2. Make regular commits (atomic, focused)
+3. Push branch and create PR targeting `develop`
+4. After review, merge to `develop`
+5. `main` is updated only via release merges from `develop`
+
 ## Quick commit workflow
 
 When committing changes, use atomic commits with conventional commit messages:
