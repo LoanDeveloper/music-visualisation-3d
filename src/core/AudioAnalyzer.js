@@ -23,7 +23,7 @@ class AudioAnalyzer {
     this.analyserRight = null;
     this.leftDataArray = null;
     this.rightDataArray = null;
-    this.channelMerger = null;
+    this.outputGain = null; // Used for reliable audio output in stereo mode
     
     // Advanced analysis options
     this.advancedOptions = {
@@ -80,36 +80,42 @@ class AudioAnalyzer {
         this.analyserRight.smoothingTimeConstant = 0.8;
         this.rightDataArray = new Uint8Array(this.analyserRight.frequencyBinCount);
         
-        // ChannelMerger to recombine for output
-        this.channelMerger = this.audioContext.createChannelMerger(2);
+        // GainNode to merge L/R back to stereo output (more reliable than ChannelMerger)
+        this.outputGain = this.audioContext.createGain();
+        this.outputGain.gain.value = 1.0;
         
         // Audio routing with stereo:
-        // source -> splitter -> L analyser -> merger -> destination
-        //                    -> R analyser -> merger
-        // source -> main analyser (for combined analysis)
+        // 
+        // For ANALYSIS:
+        //   source -> splitter -> analyserLeft (channel 0)
+        //                      -> analyserRight (channel 1)
+        //   source -> main analyser (combined/mono analysis)
+        //
+        // For OUTPUT (audio playback):
+        //   source -> outputGain -> destination
+        //
+        // This ensures audio always plays while we analyze separately
         
+        // Connect source to main analyser for combined analysis
+        this.source.connect(this.analyser);
+        
+        // Connect source to splitter for stereo analysis
         this.source.connect(this.channelSplitter);
-        this.source.connect(this.analyser); // Also connect to main for combined analysis
-        
-        // Connect splitter outputs to individual analysers
         this.channelSplitter.connect(this.analyserLeft, 0);
         this.channelSplitter.connect(this.analyserRight, 1);
         
-        // Connect analysers to merger
-        this.analyserLeft.connect(this.channelMerger, 0, 0);
-        this.analyserRight.connect(this.channelMerger, 0, 1);
+        // Connect source directly to output for reliable playback
+        this.source.connect(this.outputGain);
+        this.outputGain.connect(this.audioContext.destination);
         
-        // Connect merger to destination
-        this.channelMerger.connect(this.audioContext.destination);
-        
-        console.log('AudioAnalyzer initialized with stereo support');
+        console.log('[AudioAnalyzer] Initialized with stereo support');
       } else {
         // Mono mode: simple routing
         // source -> analyser -> destination
         this.source.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
         
-        console.log('AudioAnalyzer initialized (mono mode)');
+        console.log('[AudioAnalyzer] Initialized (mono mode)');
       }
 
       this.audioElement = audioElement;
@@ -255,7 +261,6 @@ class AudioAnalyzer {
    * Clean up resources
    */
   destroy() {
-    // Disconnect stereo nodes
     if (this.channelSplitter) {
       this.channelSplitter.disconnect();
       this.channelSplitter = null;
@@ -271,9 +276,9 @@ class AudioAnalyzer {
       this.analyserRight = null;
     }
     
-    if (this.channelMerger) {
-      this.channelMerger.disconnect();
-      this.channelMerger = null;
+    if (this.outputGain) {
+      this.outputGain.disconnect();
+      this.outputGain = null;
     }
     
     this.leftDataArray = null;
