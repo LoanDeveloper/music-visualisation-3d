@@ -62,11 +62,8 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
   }, []); // No deps - we read refs directly
 
   // Start audio analysis loop
-  const startAnalysis = useCallback(() => {
+  const startAnalysis = useCallback(async () => {
     console.log('[AudioAnalysis] startAnalysis called');
-    console.log('[AudioAnalysis] analyzerRef.current:', !!analyzerRef.current);
-    console.log('[AudioAnalysis] sceneRef.current:', !!sceneRef.current);
-    console.log('[AudioAnalysis] isRunningRef.current:', isRunningRef.current);
     
     // Prevent multiple loops
     if (isRunningRef.current) {
@@ -92,8 +89,13 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       }
     }
 
-    // Resume audio context if needed (important for browser autoplay policy)
-    analyzerRef.current.resumeContext();
+    // Resume audio context if needed (critical for browser autoplay policy)
+    // This must happen before starting the analysis loop
+    try {
+      await analyzerRef.current.resumeContext();
+    } catch (error) {
+      console.error('[AudioAnalysis] Failed to resume context:', error);
+    }
     
     isRunningRef.current = true;
 
@@ -145,18 +147,18 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
         stereo: fullAnalysis.stereo,
       };
 
-      // Log every 120 frames (~2 seconds at 60fps)
+      // Log every 120 frames (~2 seconds at 60fps) - only in dev
       frameCount++;
-      if (frameCount % 120 === 0) {
+      if (frameCount % 120 === 0 && import.meta.env.DEV) {
         const hasData = adjustedBands.bass > 0 || adjustedBands.mid > 0 || adjustedBands.high > 0;
-        console.log('[AudioAnalysis] Frequency bands:', {
-          bass: adjustedBands.bass.toFixed(2),
-          mid: adjustedBands.mid.toFixed(2),
-          high: adjustedBands.high.toFixed(2),
-          centroid: adjustedBands.spectralCentroid.toFixed(2),
-          rms: adjustedBands.rms.toFixed(2),
-          bpm: adjustedBands.bpm,
-        });
+        if (hasData) {
+          console.log('[AudioAnalysis] Frequency bands:', {
+            bass: adjustedBands.bass.toFixed(2),
+            mid: adjustedBands.mid.toFixed(2),
+            high: adjustedBands.high.toFixed(2),
+            bpm: adjustedBands.bpm,
+          });
+        }
       }
 
       // Update scene with frequency data - read ref directly each time

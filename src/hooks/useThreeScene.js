@@ -12,18 +12,16 @@ export const useThreeScene = (canvasRef, palette = 'neon', sceneRef, visualSetti
   // Initialize scene
   useEffect(() => {
     if (!canvasRef.current) {
-      console.log('[useThreeScene] No canvas ref, skipping initialization');
       return;
     }
 
-    console.log('[useThreeScene] Initializing ThreeScene...');
+    if (import.meta.env.DEV) console.log('[useThreeScene] Initializing ThreeScene...');
     
     // Create scene and store in provided ref
     const scene = new ThreeScene(canvasRef.current, palette, visualSettings);
     
     if (sceneRef) {
       sceneRef.current = scene;
-      console.log('[useThreeScene] Scene stored in sceneRef');
     }
 
     // Handle window resize
@@ -37,7 +35,7 @@ export const useThreeScene = (canvasRef, palette = 'neon', sceneRef, visualSetti
 
     // Cleanup
     return () => {
-      console.log('[useThreeScene] Cleaning up ThreeScene...');
+      if (import.meta.env.DEV) console.log('[useThreeScene] Cleaning up ThreeScene...');
       window.removeEventListener('resize', handleResize);
       
       if (sceneRef?.current) {
