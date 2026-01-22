@@ -785,7 +785,7 @@ class ParticleSystem {
       }
     }
 
-    console.log(`[ParticleSystem] Created ${this.particleCount} particles (Shape: ${this.settings.shape}, Particle: ${this.settings.particleShape})`);
+    if (import.meta.env.DEV) console.log(`[ParticleSystem] Created ${this.particleCount} particles (Shape: ${this.settings.shape}, Particle: ${this.settings.particleShape})`);
   }
 
   /**
@@ -835,7 +835,7 @@ class ParticleSystem {
     this.trailAlphas = new Float32Array(trailParticleCount * trailLength);
     this.trailAlphas.fill(1.0);
     
-    console.log(`[ParticleSystem] Trail system created for ${trailParticleCount} particles`);
+    if (import.meta.env.DEV) console.log(`[ParticleSystem] Trail system created for ${trailParticleCount} particles`);
   }
 
   /**
@@ -863,7 +863,7 @@ class ParticleSystem {
     this.connectionLines = new THREE.LineSegments(this.connectionGeometry, this.connectionMaterial);
     this.scene.add(this.connectionLines);
     
-    console.log(`[ParticleSystem] Connection system created (max: ${maxConnections})`);
+    if (import.meta.env.DEV) console.log(`[ParticleSystem] Connection system created (max: ${maxConnections})`);
   }
 
   /**
@@ -1426,7 +1426,7 @@ class ParticleSystem {
       this.connectionMaterial.opacity = this.settings.connectionOpacity;
     }
 
-    console.log('[ParticleSystem] Settings updated:', this.settings);
+    if (import.meta.env.DEV) console.log('[ParticleSystem] Settings updated:', this.settings);
   }
 
   /**
@@ -1454,7 +1454,7 @@ class ParticleSystem {
       this.createTrailSystem();
     }
     
-    console.log('[ParticleSystem] Particles regenerated');
+    if (import.meta.env.DEV) console.log('[ParticleSystem] Particles regenerated');
   }
 
   /**
@@ -1485,7 +1485,7 @@ class ParticleSystem {
     }
 
     this.geometry.attributes.color.needsUpdate = true;
-    console.log('[ParticleSystem] Theme updated');
+    if (import.meta.env.DEV) console.log('[ParticleSystem] Theme updated');
   }
 
   /**

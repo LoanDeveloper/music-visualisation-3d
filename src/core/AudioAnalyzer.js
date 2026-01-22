@@ -308,7 +308,7 @@ class AudioAnalyzer {
     resetAdvancedAnalysis();
     resetStereoAnalysis();
 
-    console.log('AudioAnalyzer destroyed');
+    if (import.meta.env.DEV) console.log('[AudioAnalyzer] Destroyed');
   }
 }
 

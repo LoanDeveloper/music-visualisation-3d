@@ -152,7 +152,7 @@ function App() {
   // Initialize audio analyzer when audio element is ready
   useEffect(() => {
     if (audioUrl && audioRef.current) {
-      console.log('[App] Audio URL set, initializing analyzer...');
+      if (import.meta.env.DEV) console.log('[App] Audio URL set, initializing analyzer...');
       // Small delay to ensure audio element is fully mounted
       const timer = setTimeout(() => {
         if (audioRef.current) {
@@ -166,20 +166,15 @@ function App() {
   // Handle audio play/pause events
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) {
-      console.log('[App] No audio element for event listeners');
-      return;
-    }
-
-    console.log('[App] Setting up audio event listeners');
+    if (!audio) return;
 
     const handlePlay = () => {
-      console.log('[App] Audio play event fired');
+      if (import.meta.env.DEV) console.log('[App] Audio play event fired');
       startAnalysis();
     };
 
     const handlePause = () => {
-      console.log('[App] Audio pause event fired');
+      if (import.meta.env.DEV) console.log('[App] Audio pause event fired');
       stopAnalysis();
     };
 
