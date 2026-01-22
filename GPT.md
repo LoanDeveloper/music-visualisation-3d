@@ -111,10 +111,24 @@ Audio file
 - Ensure downstream visuals still map to bass/mid/high as expected.
 
 ## Debugging checklist
+
+### Visual issues
 - Particles not moving: confirm AudioAnalyzer initialized and startAnalysis runs on play.
 - Colors not changing: ensure updateTheme sets geometry.attributes.color.needsUpdate.
 - Camera not rotating: ensure CameraController.update runs in RAF and pointer events are enabled.
+
+### Audio issues
+- No sound at all:
+  1. Check AudioContext state (must be 'running', not 'suspended')
+  2. Verify resumeContext() is awaited before playback
+  3. Check audio routing in AudioAnalyzer.js (source -> outputGain -> destination)
+  4. Ensure audio.play() is properly awaited with try/catch
 - AudioContext error: call resumeContext after a user gesture.
+
+## Git workflow
+- **Always base feature branches on `develop`, not `main`.**
+- Use conventional commits: `type(scope): description`
+- Create PRs targeting `develop` branch.
 
 ## Critical files
 - src/core/ParticleSystem.js
