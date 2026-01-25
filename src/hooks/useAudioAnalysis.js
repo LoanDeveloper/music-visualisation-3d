@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import AudioAnalyzer from '../core/AudioAnalyzer';
 import SimpleAudioAnalyzer from '../core/SimpleAudioAnalyzer';
+import { platform } from '../utils/platform';
 
 /**
  * Custom hook for managing audio analysis
@@ -16,6 +17,11 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
   const isRunningRef = useRef(false);
   const settingsRef = useRef(visualSettings);
   const useFallbackRef = useRef(false); // Use SimpleAudioAnalyzer if Web Audio API fails
+  
+  // Platform-specific settings
+  const platformSettings = platform.getAudioSettings();
+  const lastFrameTime = useRef(0);
+  const frameCount = useRef(0);
 
   // Keep settings ref updated
   useEffect(() => {
@@ -45,15 +51,15 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
     }
 
     try {
-      // Clean up old analyzer if it exists but failed to initialize
-      if (analyzerRef.current) {
-        analyzerRef.current.destroy();
-        analyzerRef.current = null;
+      // Check platform recommendations
+      if (platformSettings.useFallback) {
+        console.log('[AudioAnalysis] Platform recommends fallback mode');
+        throw new Error('Using fallback for platform stability');
       }
-
+      
       // Try Web Audio API first
       if (!useFallbackRef.current) {
-        console.log('[AudioAnalysis] Attempting Web Audio API initialization...');
+        console.log('[AudioAnalysis] Attempting Web Audio API initialization for', platform.os);
         analyzerRef.current = new AudioAnalyzer();
         analyzerRef.current.initialize(audioRef.current);
         console.log('[AudioAnalysis] Web Audio API initialized successfully');
@@ -201,6 +207,23 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       // Update scene with frequency data - read ref directly each time
       if (sceneRef.current) {
         sceneRef.current.updateFrequencyBands(adjustedBands);
+      }
+
+      // Platform-specific frame rate limiting
+      const now = performance.now();
+      const targetFrameInterval = 1000 / platformSettings.maxAnalysisRate;
+      
+      frameCount.current++;
+      const timeSinceLastFrame = now - lastFrameTime.current;
+      
+      // Only update if enough time has passed (reduces CPU load on Linux)
+      if (timeSinceLastFrame >= targetFrameInterval) {
+        // Update scene with frequency data - read ref directly each time
+        if (sceneRef.current) {
+          sceneRef.current.updateFrequencyBands(adjustedBands);
+        }
+        
+        lastFrameTime.current = now;
       }
 
       // Continue loop

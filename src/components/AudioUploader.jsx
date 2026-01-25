@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import { Music } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { validateAudioFile, getMimeTypeFromExtension, getOptimalFormat } from '@/utils/audioFormats';
+import { platform } from '@/utils/platform';
 
 /**
  * AudioUploader component
@@ -35,20 +37,32 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
     }
   };
 
-  const validateAndLoadFile = (file) => {
-    // Validate file type
-    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
-    const fileExtension = file.name.split('.').pop().toLowerCase();
-    const validExtensions = ['mp3', 'wav', 'ogg'];
-
-    if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
-      alert('Format de fichier non supporte. Veuillez uploader un fichier MP3, WAV ou OGG.');
-      return;
+  const validateAndLoadFile = async (file) => {
+    try {
+      // Validate file with platform-specific rules
+      await validateAudioFile(file);
+      
+      // Get optimal format for current platform
+      const optimalFormat = getOptimalFormat(platform.os);
+      console.log('[AudioUploader] Optimal format for', platform.os, ':', optimalFormat);
+      
+      // Check if current file format is optimal
+      const fileMimeType = file.type || getMimeTypeFromExtension(file.name);
+      const isOptimal = fileMimeType === optimalFormat;
+      
+      if (!isOptimal) {
+        console.warn('[AudioUploader] File format', fileMimeType, 'may not be optimal for', platform.os);
+      }
+      
+      // Create URL for audio file
+      const url = URL.createObjectURL(file);
+      console.log('[AudioUploader] Loading audio:', file.name, 'Size:', Math.round(file.size / 1024 / 1024) + 'MB');
+      
+      onFileSelect(url, file.name);
+    } catch (error) {
+      console.error('[AudioUploader] File validation failed:', error);
+      alert(`Erreur: ${error.message}`);
     }
-
-    // Create URL for audio file
-    const url = URL.createObjectURL(file);
-    onFileSelect(url, file.name);
   };
 
   if (hasAudio) {
@@ -73,13 +87,13 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
           Cliquez ou glissez-deposez un fichier audio
         </p>
         <p className="text-xs text-muted-foreground/60">
-          MP3, WAV, OGG
+          {getOptimalFormat(platform.os) === 'audio/ogg' ? 'OGG, MP3, WAV' : 'MP3, WAV, M4A'}
         </p>
       </div>
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/mp3,audio/mpeg,audio/wav,audio/ogg"
+        accept={platform.os === 'linux' ? "audio/ogg,audio/mp3,audio/mpeg,audio/wav" : "audio/mp3,audio/mpeg,audio/wav,audio/m4a"}
         onChange={handleFileChange}
         className="hidden"
       />

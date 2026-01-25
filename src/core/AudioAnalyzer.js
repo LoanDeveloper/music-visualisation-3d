@@ -1,6 +1,7 @@
 import { getFrequencyBands, resetSmoothing } from '../utils/audioProcessor';
 import { analyzeAudio, resetAdvancedAnalysis } from '../utils/advancedAudioProcessor';
 import { analyzeStereo, resetStereoAnalysis } from '../utils/stereoAnalyzer';
+import { platform } from '../utils/platform';
 
 /**
  * AudioAnalyzer class
@@ -16,14 +17,19 @@ class AudioAnalyzer {
     this.audioElement = null;
     this.isInitialized = false;
     
-    // Stereo analysis nodes
-    this.stereoEnabled = true;
+    // Platform-specific settings
+    this.settings = platform.getAudioSettings();
+    this.lastAudioCheck = 0;
+    this.audioStuckCounter = 0;
+    
+    // Stereo analysis nodes (always disabled on Linux)
+    this.stereoEnabled = false; // Always false for stability
     this.channelSplitter = null;
     this.analyserLeft = null;
     this.analyserRight = null;
     this.leftDataArray = null;
     this.rightDataArray = null;
-    this.outputGain = null; // Used for reliable audio output in stereo mode
+    this.outputGain = null;
     
     // Advanced analysis options
     this.advancedOptions = {
@@ -31,6 +37,10 @@ class AudioAnalyzer {
       onsetSensitivity: 1.0,
       enableChroma: false,
     };
+    
+    // Auto-recovery system
+    this.recoveryTimer = null;
+    this.isRecovering = false;
   }
 
   /**
@@ -44,19 +54,22 @@ class AudioAnalyzer {
       return;
     }
 
-    // Force mono mode on Linux/Fedora for stability
+    // Log platform info
+    platform.logInfo();
+
+    // Force mono mode always for stability
     this.stereoEnabled = false;
 
     try {
-      // Create audio context
+      // Create audio context with platform settings
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.audioContext = new AudioContext();
       console.log('[AudioAnalyzer] AudioContext created, state:', this.audioContext.state);
 
-      // Create main analyser node
+      // Create main analyser node with platform settings
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 2048;
-      this.analyser.smoothingTimeConstant = 0.8;
+      this.analyser.fftSize = this.settings.fftSize;
+      this.analyser.smoothingTimeConstant = this.settings.smoothingTimeConstant;
 
       // Create media element source
       this.source = this.audioContext.createMediaElementSource(audioElement);
@@ -65,18 +78,23 @@ class AudioAnalyzer {
       const bufferLength = this.analyser.frequencyBinCount;
       this.dataArray = new Uint8Array(bufferLength);
 
-      // ULTRA MINIMAL ROUTING - Only what's absolutely necessary
-      console.log('[AudioAnalyzer] Connecting audio nodes...');
+      // Platform-specific routing
+      console.log('[AudioAnalyzer] Connecting audio nodes with platform optimizations...');
       
       // Direct routing: source -> analyser -> destination
       this.source.connect(this.analyser);
       this.analyser.connect(this.audioContext.destination);
       
+      // Setup auto-recovery for problematic platforms
+      if (this.settings.autoRecovery) {
+        this.setupAutoRecovery();
+      }
+      
       console.log('[AudioAnalyzer] Audio routing complete');
 
       this.audioElement = audioElement;
       this.isInitialized = true;
-      console.log('[AudioAnalyzer] Initialized successfully (minimal mono mode)');
+      console.log('[AudioAnalyzer] Initialized successfully (platform-optimized mono mode)');
 
     } catch (error) {
       console.error('[AudioAnalyzer] Failed to initialize:', error);
@@ -120,7 +138,70 @@ class AudioAnalyzer {
   }
 
   /**
-   * Get raw frequency data
+   * Setup auto-recovery mechanism for problematic platforms
+   */
+  setupAutoRecovery() {
+    console.log('[AudioAnalyzer] Setting up auto-recovery for platform:', platform.os);
+    
+    // Check audio health every 2 seconds
+    this.recoveryTimer = setInterval(() => {
+      if (!this.audioElement || this.isRecovering) return;
+      
+      const now = Date.now();
+      const timeSinceLastCheck = now - this.lastAudioCheck;
+      
+      // Check if audio appears stuck (not progressing)
+      if (this.audioElement.currentTime > 0 && !this.audioElement.paused) {
+        const expectedProgress = (timeSinceLastCheck / 1000); // Expected progress in seconds
+        const actualProgress = this.audioElement.currentTime - this.lastAudioCheck;
+        
+        // If audio should have progressed but didn't, it's stuck
+        if (actualProgress < expectedProgress * 0.1) {
+          this.audioStuckCounter++;
+          console.warn(`[AudioAnalyzer] Audio appears stuck (counter: ${this.audioStuckCounter})`);
+          
+          if (this.audioStuckCounter >= 3) {
+            this.attemptRecovery();
+          }
+        } else {
+          this.audioStuckCounter = 0; // Reset counter if progressing normally
+        }
+      }
+      
+      this.lastAudioCheck = this.audioElement.currentTime;
+    }, 2000);
+  }
+
+  /**
+   * Attempt to recover from audio issues
+   */
+  async attemptRecovery() {
+    if (this.isRecovering) return;
+    
+    console.log('[AudioAnalyzer] Attempting audio recovery...');
+    this.isRecovering = true;
+    
+    try {
+      const currentTime = this.audioElement.currentTime;
+      
+      // Pause briefly
+      this.audioElement.pause();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Resume playback
+      await this.audioElement.play();
+      
+      console.log('[AudioAnalyzer] Recovery successful, resuming at:', currentTime);
+      this.audioStuckCounter = 0;
+    } catch (error) {
+      console.error('[AudioAnalyzer] Recovery failed:', error);
+    } finally {
+      this.isRecovering = false;
+    }
+  }
+
+  /**
+   * Get raw frequency data with platform-specific optimizations
    * @returns {Uint8Array} Raw frequency data (0-255)
    */
   getFrequencyData() {
@@ -145,7 +226,8 @@ class AudioAnalyzer {
       }
       const average = sum / this.dataArray.length;
       
-      if (average > 0 && Math.random() < 0.01) { // Only log 1% of the time to avoid spam
+      // Platform-specific logging
+      if (average > 0 && Math.random() < 0.005) { // Even less frequent logging
         console.log('[AudioAnalyzer] Audio data detected, average level:', average.toFixed(2));
       }
       
@@ -253,10 +335,16 @@ class AudioAnalyzer {
   }
 
   /**
-   * Clean up resources - minimal approach to prevent sink corruption
+   * Clean up resources with platform-specific approach
    */
   destroy() {
     console.log('[AudioAnalyzer] Destroying audio analyzer...');
+    
+    // Clear auto-recovery timer
+    if (this.recoveryTimer) {
+      clearInterval(this.recoveryTimer);
+      this.recoveryTimer = null;
+    }
     
     // Disconnect source first (stops audio flow)
     if (this.source) {
@@ -300,6 +388,8 @@ class AudioAnalyzer {
     this.audioElement = null;
     this.isInitialized = false;
     this.stereoEnabled = false;
+    this.isRecovering = false;
+    this.audioStuckCounter = 0;
     
     // Reset processors
     resetSmoothing();
