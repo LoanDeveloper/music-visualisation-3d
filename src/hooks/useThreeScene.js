@@ -43,6 +43,7 @@ export const useThreeScene = (canvasRef, palette = 'neon', sceneRef, visualSetti
         sceneRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasRef]); // Only re-run if canvas changes
 
   // Update palette when it changes

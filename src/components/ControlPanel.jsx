@@ -26,15 +26,43 @@ const ControlPanel = ({ audioRef, audioName }) => {
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      console.log('[ControlPanel] Audio ended');
+      setIsPlaying(false);
+    };
+    const handlePlay = () => {
+      console.log('[ControlPanel] Playing');
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      console.log('[ControlPanel] Paused');
+      setIsPlaying(false);
+    };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    
+    // Debugging events
+    const handleLoadStart = () => console.log('[ControlPanel] Load start');
+    const handleCanPlay = () => console.log('[ControlPanel] Can play');
+    const handleCanPlayThrough = () => console.log('[ControlPanel] Can play through');
+    const handleSeeking = () => console.log('[ControlPanel] Seeking');
+    const handleSeeked = () => console.log('[ControlPanel] Seeked');
+    const handleStalled = () => console.warn('[ControlPanel] Stalled');
+    const handleWaiting = () => console.warn('[ControlPanel] Waiting');
+    const handleSuspend = () => console.warn('[ControlPanel] Suspend');
+    
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
+    audio.addEventListener('seeking', handleSeeking);
+    audio.addEventListener('seeked', handleSeeked);
+    audio.addEventListener('stalled', handleStalled);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('suspend', handleSuspend);
 
     // Sync initial state
     setIsPlaying(!audio.paused);
@@ -45,6 +73,14 @@ const ControlPanel = ({ audioRef, audioName }) => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      audio.removeEventListener('seeking', handleSeeking);
+      audio.removeEventListener('seeked', handleSeeked);
+      audio.removeEventListener('stalled', handleStalled);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('suspend', handleSuspend);
     };
   }, [audioRef]);
 
@@ -54,14 +90,31 @@ const ControlPanel = ({ audioRef, audioName }) => {
 
     if (audio.paused) {
       try {
+        console.log('[ControlPanel] Attempting to play audio...');
+        console.log('[ControlPanel] Audio state:', {
+          src: audio.src ? 'loaded' : 'no source',
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+          currentTime: audio.currentTime,
+          duration: audio.duration,
+        });
+        
         await audio.play();
         setIsPlaying(true);
+        
+        console.log('[ControlPanel] Play successful');
       } catch (error) {
         console.error('[ControlPanel] Failed to play audio:', error);
+        console.log('[ControlPanel] Audio error state:', {
+          error: audio.error ? audio.error.message : 'none',
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+        });
         // Most common error: user hasn't interacted with the page yet
         // The audio will play once they click again
       }
     } else {
+      console.log('[ControlPanel] Pausing audio at time:', audio.currentTime);
       audio.pause();
       setIsPlaying(false);
     }

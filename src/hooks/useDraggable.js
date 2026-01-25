@@ -66,7 +66,6 @@ export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options 
     const maxX = window.innerWidth - padding;
     const maxY = window.innerHeight - padding;
     const minX = padding - rect.width;
-    const minY = padding - rect.height;
     
     return {
       x: Math.max(minX, Math.min(maxX, x)),
