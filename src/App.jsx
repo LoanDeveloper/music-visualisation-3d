@@ -138,6 +138,7 @@ function App() {
 
   // Handle audio file selection
   const handleFileSelect = (url, name) => {
+    console.log('[App] File selected:', name);
     setAudioUrl(url);
     setAudioName(name);
 
@@ -169,17 +170,63 @@ function App() {
     if (!audio) return;
 
     const handlePlay = () => {
-      if (import.meta.env.DEV) console.log('[App] Audio play event fired');
+      if (import.meta.env.DEV) {
+        console.log('[App] Audio play event fired');
+        console.log('[App] Audio play details:', {
+          currentTime: audio.currentTime,
+          duration: audio.duration,
+          networkState: audio.networkState,
+          readyState: audio.readyState,
+        });
+      }
       startAnalysis();
     };
 
     const handlePause = () => {
-      if (import.meta.env.DEV) console.log('[App] Audio pause event fired');
+      if (import.meta.env.DEV) {
+        console.log('[App] Audio pause event fired');
+        console.log('[App] Audio pause details:', {
+          currentTime: audio.currentTime,
+          duration: audio.duration,
+          ended: audio.ended,
+          error: audio.error ? audio.error.message : 'none',
+          networkState: audio.networkState,
+          readyState: audio.readyState,
+        });
+      }
       stopAnalysis();
     };
 
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    
+    // Add more audio event listeners for debugging
+    const handleEnded = () => {
+      console.log('[App] Audio ended event fired');
+    };
+    
+    const handleError = (e) => {
+      console.error('[App] Audio error event:', e);
+      console.error('[App] Audio error details:', audio.error);
+    };
+    
+    const handleStalled = () => {
+      console.warn('[App] Audio stalled event fired');
+    };
+    
+    const handleSuspend = () => {
+      console.warn('[App] Audio suspend event fired');
+    };
+    
+    const handleWaiting = () => {
+      console.warn('[App] Audio waiting event fired');
+    };
+    
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('stalled', handleStalled);
+    audio.addEventListener('suspend', handleSuspend);
+    audio.addEventListener('waiting', handleWaiting);
 
     // If audio is already playing, start analysis
     if (!audio.paused) {
@@ -189,6 +236,11 @@ function App() {
     return () => {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('stalled', handleStalled);
+      audio.removeEventListener('suspend', handleSuspend);
+      audio.removeEventListener('waiting', handleWaiting);
     };
   }, [audioUrl, startAnalysis, stopAnalysis]);
 
