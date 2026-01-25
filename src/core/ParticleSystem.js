@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { lerpColor } from '../utils/colorPalettes';
 import { centroidToColor, pitchClassToColor } from '../utils/advancedAudioProcessor';
 
 /**
@@ -145,10 +144,11 @@ class ParticleSystem {
           ctx.fill();
           break;
 
-        case 'square':
+        case 'square': {
           const squareSize = radius * 1.4;
           ctx.fillRect(center - squareSize/2, center - squareSize/2, squareSize, squareSize);
           break;
+        }
 
         case 'star':
           this.drawStar(ctx, center, center, 5, radius, radius * 0.5);
@@ -802,7 +802,6 @@ class ParticleSystem {
     this.trailGeometry = new THREE.BufferGeometry();
     const trailPositions = new Float32Array(maxVertices);
     const trailColors = new Float32Array(maxVertices);
-    const trailAlphas = new Float32Array(maxVertices / 3); // Per-vertex alpha
     
     this.trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     this.trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
@@ -878,7 +877,6 @@ class ParticleSystem {
     
     // Extract advanced metrics (with defaults for backwards compatibility)
     const spectralCentroid = frequencyBands.spectralCentroid || 0;
-    const spectralFlux = frequencyBands.spectralFlux || 0;
     const rms = frequencyBands.rms || ((bass + mid + high) / 3);
     const isBeat = frequencyBands.isBeat || false;
     const beatIntensity = frequencyBands.beatIntensity || 0;
@@ -1000,7 +998,6 @@ class ParticleSystem {
       else if (shape === 'dna') {
         const baseAngle = this.velocities[i3];
         const t = this.velocities[i3 + 1];
-        const strand = this.velocities[i3 + 2];
         
         const waveOffset = Math.sin(this.time * 2 + t * Math.PI * 4) * 10 * (bass + mid);
         const twistSpeed = this.time * 0.5;
@@ -1186,7 +1183,7 @@ class ParticleSystem {
 
     // Update trails
     if (this.settings.trails && this.trailLines) {
-      this.updateTrails(positions, colors);
+      this.updateTrails(positions);
     }
 
     // Update connections
@@ -1198,7 +1195,7 @@ class ParticleSystem {
   /**
    * Update trail positions with decay effect
    */
-  updateTrails(positions, colors) {
+  updateTrails(positions) {
     if (!this.trailGeometry || !this.trailParticleIndices) return;
     
     const trailLength = this.settings.trailLength;

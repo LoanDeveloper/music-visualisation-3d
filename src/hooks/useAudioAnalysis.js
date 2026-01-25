@@ -59,6 +59,7 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
         analyzerRef.current = null;
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // No deps - we read refs directly
 
   // Start audio analysis loop
@@ -172,6 +173,7 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
 
     console.log('[AudioAnalysis] Starting analysis loop');
     updateAudioData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // No deps - we read refs directly
 
   // Stop audio analysis loop
