@@ -36,9 +36,9 @@ class AudioAnalyzer {
   /**
    * Initialize the audio analyzer with an audio element
    * @param {HTMLAudioElement} audioElement - The audio element to analyze
-   * @param {boolean} stereoEnabled - Enable stereo analysis (default: true)
+   * @param {boolean} stereoEnabled - Enable stereo analysis (default: false for stability)
    */
-  initialize(audioElement, stereoEnabled = true) {
+  initialize(audioElement, stereoEnabled = false) {
     if (this.isInitialized) {
       console.warn('AudioAnalyzer already initialized');
       return;
@@ -63,7 +63,8 @@ class AudioAnalyzer {
       const bufferLength = this.analyser.frequencyBinCount;
       this.dataArray = new Uint8Array(bufferLength);
 
-      if (this.stereoEnabled) {
+    if (this.stereoEnabled) {
+      console.warn('[AudioAnalyzer] Stereo mode enabled - may cause issues on some systems');
         // Create stereo analysis nodes
         // ChannelSplitter to split L/R
         this.channelSplitter = this.audioContext.createChannelSplitter(2);
@@ -96,6 +97,10 @@ class AudioAnalyzer {
         //
         // This ensures audio always plays while we analyze separately
         
+        // Connect source to output FIRST (critical for audio playback)
+        this.source.connect(this.outputGain);
+        this.outputGain.connect(this.audioContext.destination);
+        
         // Connect source to main analyser for combined analysis
         this.source.connect(this.analyser);
         
@@ -104,11 +109,7 @@ class AudioAnalyzer {
         this.channelSplitter.connect(this.analyserLeft, 0);
         this.channelSplitter.connect(this.analyserRight, 1);
         
-        // Connect source directly to output for reliable playback
-        this.source.connect(this.outputGain);
-        this.outputGain.connect(this.audioContext.destination);
-        
-        console.log('[AudioAnalyzer] Initialized with stereo support');
+        console.log('[AudioAnalyzer] Initialized with stereo support (potentially unstable)');
       } else {
         // Mono mode: simple routing
         // source -> analyser -> destination
@@ -258,9 +259,10 @@ class AudioAnalyzer {
   }
 
   /**
-   * Clean up resources
+   * Clean up resources - critical order to prevent sink corruption
    */
   destroy() {
+    // Disconnect analysis nodes first
     if (this.channelSplitter) {
       this.channelSplitter.disconnect();
       this.channelSplitter = null;
@@ -275,31 +277,35 @@ class AudioAnalyzer {
       this.analyserRight.disconnect();
       this.analyserRight = null;
     }
-    
-    if (this.outputGain) {
-      this.outputGain.disconnect();
-      this.outputGain = null;
-    }
-    
-    this.leftDataArray = null;
-    this.rightDataArray = null;
-
-    if (this.source) {
-      this.source.disconnect();
-      this.source = null;
-    }
 
     if (this.analyser) {
       this.analyser.disconnect();
       this.analyser = null;
     }
 
+    // Disconnect output LAST to avoid sink corruption
+    if (this.outputGain) {
+      this.outputGain.disconnect();
+      this.outputGain = null;
+    }
+    
+    // Disconnect source node
+    if (this.source) {
+      this.source.disconnect();
+      this.source = null;
+    }
+    
+    // Clear data arrays
+    this.leftDataArray = null;
+    this.rightDataArray = null;
+    this.dataArray = null;
+
+    // Close audio context
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
     }
 
-    this.dataArray = null;
     this.audioElement = null;
     this.isInitialized = false;
     this.stereoEnabled = true;
