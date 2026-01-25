@@ -36,22 +36,24 @@ class AudioAnalyzer {
   /**
    * Initialize the audio analyzer with an audio element
    * @param {HTMLAudioElement} audioElement - The audio element to analyze
-   * @param {boolean} stereoEnabled - Enable stereo analysis (default: false for stability)
+   * @param {boolean} stereoEnabled - Always false - not supported on Linux
    */
   initialize(audioElement, stereoEnabled = false) {
     if (this.isInitialized) {
-      console.warn('AudioAnalyzer already initialized');
+      console.warn('[AudioAnalyzer] Already initialized');
       return;
     }
 
-    this.stereoEnabled = stereoEnabled;
+    // Force mono mode on Linux/Fedora for stability
+    this.stereoEnabled = false;
 
     try {
       // Create audio context
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.audioContext = new AudioContext();
+      console.log('[AudioAnalyzer] AudioContext created, state:', this.audioContext.state);
 
-      // Create main analyser node (for combined/mono analysis)
+      // Create main analyser node
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 2048;
       this.analyser.smoothingTimeConstant = 0.8;
@@ -63,67 +65,26 @@ class AudioAnalyzer {
       const bufferLength = this.analyser.frequencyBinCount;
       this.dataArray = new Uint8Array(bufferLength);
 
-    if (this.stereoEnabled) {
-      console.warn('[AudioAnalyzer] Stereo mode enabled - may cause issues on some systems');
-        // Create stereo analysis nodes
-        // ChannelSplitter to split L/R
-        this.channelSplitter = this.audioContext.createChannelSplitter(2);
-        
-        // Left channel analyser
-        this.analyserLeft = this.audioContext.createAnalyser();
-        this.analyserLeft.fftSize = 2048;
-        this.analyserLeft.smoothingTimeConstant = 0.8;
-        this.leftDataArray = new Uint8Array(this.analyserLeft.frequencyBinCount);
-        
-        // Right channel analyser
-        this.analyserRight = this.audioContext.createAnalyser();
-        this.analyserRight.fftSize = 2048;
-        this.analyserRight.smoothingTimeConstant = 0.8;
-        this.rightDataArray = new Uint8Array(this.analyserRight.frequencyBinCount);
-        
-        // GainNode to merge L/R back to stereo output (more reliable than ChannelMerger)
-        this.outputGain = this.audioContext.createGain();
-        this.outputGain.gain.value = 1.0;
-        
-        // Audio routing with stereo:
-        // 
-        // For ANALYSIS:
-        //   source -> splitter -> analyserLeft (channel 0)
-        //                      -> analyserRight (channel 1)
-        //   source -> main analyser (combined/mono analysis)
-        //
-        // For OUTPUT (audio playback):
-        //   source -> outputGain -> destination
-        //
-        // This ensures audio always plays while we analyze separately
-        
-        // Connect source to output FIRST (critical for audio playback)
-        this.source.connect(this.outputGain);
-        this.outputGain.connect(this.audioContext.destination);
-        
-        // Connect source to main analyser for combined analysis
-        this.source.connect(this.analyser);
-        
-        // Connect source to splitter for stereo analysis
-        this.source.connect(this.channelSplitter);
-        this.channelSplitter.connect(this.analyserLeft, 0);
-        this.channelSplitter.connect(this.analyserRight, 1);
-        
-        console.log('[AudioAnalyzer] Initialized with stereo support (potentially unstable)');
-      } else {
-        // Mono mode: simple routing
-        // source -> analyser -> destination
-        this.source.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
-        
-        console.log('[AudioAnalyzer] Initialized (mono mode)');
-      }
+      // ULTRA MINIMAL ROUTING - Only what's absolutely necessary
+      console.log('[AudioAnalyzer] Connecting audio nodes...');
+      
+      // Direct routing: source -> analyser -> destination
+      this.source.connect(this.analyser);
+      this.analyser.connect(this.audioContext.destination);
+      
+      console.log('[AudioAnalyzer] Audio routing complete');
 
       this.audioElement = audioElement;
       this.isInitialized = true;
+      console.log('[AudioAnalyzer] Initialized successfully (minimal mono mode)');
 
     } catch (error) {
-      console.error('Failed to initialize AudioAnalyzer:', error);
+      console.error('[AudioAnalyzer] Failed to initialize:', error);
+      // Cleanup on error
+      if (this.audioContext) {
+        this.audioContext.close();
+        this.audioContext = null;
+      }
       throw error;
     }
   }
@@ -132,18 +93,29 @@ class AudioAnalyzer {
    * Resume audio context if suspended (required for autoplay policies)
    */
   async resumeContext() {
-    if (this.audioContext) {
-      console.log('[AudioAnalyzer] AudioContext state:', this.audioContext.state);
-      if (this.audioContext.state === 'suspended') {
-        try {
-          await this.audioContext.resume();
-          console.log('[AudioAnalyzer] AudioContext resumed successfully');
-        } catch (error) {
-          console.error('[AudioAnalyzer] Failed to resume AudioContext:', error);
-        }
-      }
-    } else {
+    if (!this.audioContext) {
       console.warn('[AudioAnalyzer] No AudioContext to resume');
+      return false;
+    }
+
+    console.log('[AudioAnalyzer] AudioContext state before resume:', this.audioContext.state);
+    
+    if (this.audioContext.state === 'suspended') {
+      try {
+        console.log('[AudioAnalyzer] Attempting to resume AudioContext...');
+        await this.audioContext.resume();
+        console.log('[AudioAnalyzer] AudioContext resumed successfully, new state:', this.audioContext.state);
+        return true;
+      } catch (error) {
+        console.error('[AudioAnalyzer] Failed to resume AudioContext:', error);
+        return false;
+      }
+    } else if (this.audioContext.state === 'running') {
+      console.log('[AudioAnalyzer] AudioContext already running');
+      return true;
+    } else {
+      console.warn('[AudioAnalyzer] AudioContext in unexpected state:', this.audioContext.state);
+      return false;
     }
   }
 
@@ -157,9 +129,31 @@ class AudioAnalyzer {
       return new Uint8Array(0);
     }
 
-    this.analyser.getByteFrequencyData(this.dataArray);
-    
-    return this.dataArray;
+    // Check audio context state
+    if (this.audioContext.state !== 'running') {
+      console.warn('[AudioAnalyzer] AudioContext not running, state:', this.audioContext.state);
+      return new Uint8Array(0);
+    }
+
+    try {
+      this.analyser.getByteFrequencyData(this.dataArray);
+      
+      // Check if we have actual audio data
+      let sum = 0;
+      for (let i = 0; i < this.dataArray.length; i++) {
+        sum += this.dataArray[i];
+      }
+      const average = sum / this.dataArray.length;
+      
+      if (average > 0 && Math.random() < 0.01) { // Only log 1% of the time to avoid spam
+        console.log('[AudioAnalyzer] Audio data detected, average level:', average.toFixed(2));
+      }
+      
+      return this.dataArray;
+    } catch (error) {
+      console.error('[AudioAnalyzer] Error getting frequency data:', error);
+      return new Uint8Array(0);
+    }
   }
 
   /**
@@ -259,62 +253,60 @@ class AudioAnalyzer {
   }
 
   /**
-   * Clean up resources - critical order to prevent sink corruption
+   * Clean up resources - minimal approach to prevent sink corruption
    */
   destroy() {
-    // Disconnect analysis nodes first
-    if (this.channelSplitter) {
-      this.channelSplitter.disconnect();
-      this.channelSplitter = null;
-    }
+    console.log('[AudioAnalyzer] Destroying audio analyzer...');
     
-    if (this.analyserLeft) {
-      this.analyserLeft.disconnect();
-      this.analyserLeft = null;
-    }
-    
-    if (this.analyserRight) {
-      this.analyserRight.disconnect();
-      this.analyserRight = null;
+    // Disconnect source first (stops audio flow)
+    if (this.source) {
+      try {
+        this.source.disconnect();
+        console.log('[AudioAnalyzer] Source disconnected');
+      } catch (error) {
+        console.warn('[AudioAnalyzer] Error disconnecting source:', error);
+      }
+      this.source = null;
     }
 
+    // Disconnect analyser
     if (this.analyser) {
-      this.analyser.disconnect();
+      try {
+        this.analyser.disconnect();
+        console.log('[AudioAnalyzer] Analyser disconnected');
+      } catch (error) {
+        console.warn('[AudioAnalyzer] Error disconnecting analyser:', error);
+      }
       this.analyser = null;
     }
 
-    // Disconnect output LAST to avoid sink corruption
-    if (this.outputGain) {
-      this.outputGain.disconnect();
-      this.outputGain = null;
-    }
-    
-    // Disconnect source node
-    if (this.source) {
-      this.source.disconnect();
-      this.source = null;
-    }
-    
-    // Clear data arrays
-    this.leftDataArray = null;
-    this.rightDataArray = null;
-    this.dataArray = null;
-
     // Close audio context
     if (this.audioContext) {
-      this.audioContext.close();
+      try {
+        const state = this.audioContext.state;
+        this.audioContext.close();
+        console.log('[AudioAnalyzer] AudioContext closed, was:', state);
+      } catch (error) {
+        console.warn('[AudioAnalyzer] Error closing AudioContext:', error);
+      }
       this.audioContext = null;
     }
 
+    // Clear data arrays
+    this.dataArray = null;
+    this.leftDataArray = null;
+    this.rightDataArray = null;
+
     this.audioElement = null;
     this.isInitialized = false;
-    this.stereoEnabled = true;
+    this.stereoEnabled = false;
     
+    // Reset processors
     resetSmoothing();
     resetAdvancedAnalysis();
     resetStereoAnalysis();
 
-    if (import.meta.env.DEV) console.log('[AudioAnalyzer] Destroyed');
+    console.log('[AudioAnalyzer] Destroy complete');
   }
 }
 
