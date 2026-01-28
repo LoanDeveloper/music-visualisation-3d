@@ -1,7 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import AudioAnalyzer from '../core/AudioAnalyzer';
-import SimpleAudioAnalyzer from '../core/SimpleAudioAnalyzer';
-import { platform } from '../utils/platform';
 
 /**
  * Custom hook for managing audio analysis
@@ -16,12 +14,6 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
   const animationFrameRef = useRef(null);
   const isRunningRef = useRef(false);
   const settingsRef = useRef(visualSettings);
-  const useFallbackRef = useRef(false); // Use SimpleAudioAnalyzer if Web Audio API fails
-  
-  // Platform-specific settings
-  const platformSettings = platform.getAudioSettings();
-  const lastFrameTime = useRef(0);
-  const frameCount = useRef(0);
 
   // Keep settings ref updated
   useEffect(() => {
@@ -51,40 +43,30 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
     }
 
     try {
-      // Check platform recommendations
-      if (platformSettings.useFallback) {
-        console.log('[AudioAnalysis] Platform recommends fallback mode');
-        throw new Error('Using fallback for platform stability');
-      }
-      
-      // Try Web Audio API first
-      if (!useFallbackRef.current) {
-        console.log('[AudioAnalysis] Attempting Web Audio API initialization for', platform.os);
-        analyzerRef.current = new AudioAnalyzer();
-        analyzerRef.current.initialize(audioRef.current);
-        console.log('[AudioAnalysis] Web Audio API initialized successfully');
-      } else {
-        throw new Error('Using fallback mode');
-      }
-    } catch (error) {
-      console.error('[AudioAnalysis] Web Audio API failed, falling back to simple mode:', error.message);
-      
-      // Fall back to simple analyzer
+      // Clean up old analyzer if it exists but failed to initialize
       if (analyzerRef.current) {
         analyzerRef.current.destroy();
+        analyzerRef.current = null;
       }
-      
-      analyzerRef.current = new SimpleAudioAnalyzer();
+
+      analyzerRef.current = new AudioAnalyzer();
       analyzerRef.current.initialize(audioRef.current);
-      useFallbackRef.current = true;
-      console.log('[AudioAnalysis] Fallback audio analyzer initialized');
+      console.log('[AudioAnalysis] Audio analyzer initialized successfully');
+    } catch (error) {
+      console.error('[AudioAnalysis] Failed to initialize audio analyzer:', error);
+      // If initialization fails, clean up
+      if (analyzerRef.current) {
+        analyzerRef.current = null;
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // No deps - we read refs directly
 
   // Start audio analysis loop
-  const startAnalysis = useCallback(async () => {
-    console.log('[AudioAnalysis] === START ANALYSIS CALLED ===');
+  const startAnalysis = useCallback(() => {
+    console.log('[AudioAnalysis] startAnalysis called');
+    console.log('[AudioAnalysis] analyzerRef.current:', !!analyzerRef.current);
+    console.log('[AudioAnalysis] sceneRef.current:', !!sceneRef.current);
+    console.log('[AudioAnalysis] isRunningRef.current:', isRunningRef.current);
     
     // Prevent multiple loops
     if (isRunningRef.current) {
@@ -97,25 +79,12 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       console.warn('[AudioAnalysis] No analyzer, attempting to initialize...');
       if (audioRef.current) {
         try {
-          if (!useFallbackRef.current) {
-            console.log('[AudioAnalysis] Late init with Web Audio API...');
-            analyzerRef.current = new AudioAnalyzer();
-            analyzerRef.current.initialize(audioRef.current);
-            console.log('[AudioAnalysis] Late Web Audio API initialization successful');
-          } else {
-            throw new Error('Using fallback mode');
-          }
-        } catch (error) {
-          console.error('[AudioAnalysis] Late Web Audio API failed, using fallback:', error.message);
-          
-          if (analyzerRef.current) {
-            analyzerRef.current.destroy();
-          }
-          
-          analyzerRef.current = new SimpleAudioAnalyzer();
+          analyzerRef.current = new AudioAnalyzer();
           analyzerRef.current.initialize(audioRef.current);
-          useFallbackRef.current = true;
-          console.log('[AudioAnalysis] Late fallback initialization successful');
+          console.log('[AudioAnalysis] Late initialization successful');
+        } catch (error) {
+          console.error('[AudioAnalysis] Late initialization failed:', error);
+          return;
         }
       } else {
         console.error('[AudioAnalysis] No audio element available');
@@ -123,16 +92,10 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       }
     }
 
-    // Resume audio context if needed (critical for browser autoplay policy)
-    // This must happen before starting the analysis loop
-    const resumed = await analyzerRef.current.resumeContext();
-    if (!resumed) {
-      console.error('[AudioAnalysis] Failed to resume AudioContext - audio will not work');
-      return;
-    }
+    // Resume audio context if needed (important for browser autoplay policy)
+    analyzerRef.current.resumeContext();
     
     isRunningRef.current = true;
-    console.log('[AudioAnalysis] Analysis loop starting...');
 
     let frameCount = 0;
     const updateAudioData = () => {
@@ -143,17 +106,6 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       if (!analyzerRef.current) {
         console.warn('[AudioAnalysis] Analyzer lost during loop');
         isRunningRef.current = false;
-        return;
-      }
-
-      // Get raw frequency data first
-      const frequencyData = analyzerRef.current.getFrequencyData();
-      
-      // Check if we have actual audio data
-      if (frequencyData.length === 0) {
-        console.warn('[AudioAnalysis] No frequency data available');
-        // Continue loop anyway, might get data later
-        animationFrameRef.current = requestAnimationFrame(updateAudioData);
         return;
       }
 
@@ -189,18 +141,21 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
         chroma: fullAnalysis.chroma,
         dominantPitch: fullAnalysis.dominantPitch,
         
-        // Stereo analysis (always false now)
+        // Stereo analysis
         stereo: fullAnalysis.stereo,
       };
 
-      // Log every 120 frames (~2 seconds at 60fps) - only in dev
+      // Log every 120 frames (~2 seconds at 60fps)
       frameCount++;
-      if (frameCount % 120 === 0 && import.meta.env.DEV) {
+      if (frameCount % 120 === 0) {
         const hasData = adjustedBands.bass > 0 || adjustedBands.mid > 0 || adjustedBands.high > 0;
-        console.log('[AudioAnalysis] Frame', frameCount, '- Has data:', hasData, '- Bands:', {
+        console.log('[AudioAnalysis] Frequency bands:', {
           bass: adjustedBands.bass.toFixed(2),
           mid: adjustedBands.mid.toFixed(2),
           high: adjustedBands.high.toFixed(2),
+          centroid: adjustedBands.spectralCentroid.toFixed(2),
+          rms: adjustedBands.rms.toFixed(2),
+          bpm: adjustedBands.bpm,
         });
       }
 
@@ -209,30 +164,12 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
         sceneRef.current.updateFrequencyBands(adjustedBands);
       }
 
-      // Platform-specific frame rate limiting
-      const now = performance.now();
-      const targetFrameInterval = 1000 / platformSettings.maxAnalysisRate;
-      
-      frameCount.current++;
-      const timeSinceLastFrame = now - lastFrameTime.current;
-      
-      // Only update if enough time has passed (reduces CPU load on Linux)
-      if (timeSinceLastFrame >= targetFrameInterval) {
-        // Update scene with frequency data - read ref directly each time
-        if (sceneRef.current) {
-          sceneRef.current.updateFrequencyBands(adjustedBands);
-        }
-        
-        lastFrameTime.current = now;
-      }
-
       // Continue loop
       animationFrameRef.current = requestAnimationFrame(updateAudioData);
     };
 
     console.log('[AudioAnalysis] Starting analysis loop');
     updateAudioData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // No deps - we read refs directly
 
   // Stop audio analysis loop
@@ -255,10 +192,6 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       analyzerRef.current.destroy();
       analyzerRef.current = null;
     }
-    
-    // Reset fallback flag
-    useFallbackRef.current = false;
-    console.log('[AudioAnalysis] Reset complete, will try Web Audio API next time');
   }, [stopAnalysis]);
 
   // Cleanup on unmount
