@@ -183,14 +183,15 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
     }
   }, []);
 
-  // Reset analyzer
+  // Reset analyzer - stop analysis but keep analyzer for reuse
   const reset = useCallback(() => {
     console.log('[AudioAnalysis] reset called');
     stopAnalysis();
     
+    // Just reset the analysis state, don't destroy the analyzer
+    // This allows reuse with the same audio element
     if (analyzerRef.current) {
-      analyzerRef.current.destroy();
-      analyzerRef.current = null;
+      analyzerRef.current.reset();
     }
   }, [stopAnalysis]);
 
