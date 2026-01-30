@@ -139,15 +139,23 @@ function App() {
   // Handle audio file selection
   const handleFileSelect = (url, name) => {
     console.log('[App] File selected:', name);
+    
+    // Pause current audio if playing
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+    }
+    
+    // Stop analysis loop (but don't destroy the analyzer)
+    stopAnalysis();
+    
+    // Update URL and name (audio element stays the same, only src changes)
     setAudioUrl(url);
     setAudioName(name);
 
-    // Reset audio analyzer when new file is loaded
+    // Reset position
     if (audioRef.current) {
-      audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    reset();
   };
 
   // Initialize audio analyzer when audio element is ready
@@ -301,10 +309,13 @@ function App() {
         visualSettings={visualSettings}
       />
 
-      {/* Audio element (hidden) */}
-      {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} className="hidden" />
-      )}
+      {/* Audio element (hidden) - always present, only src changes */}
+      <audio 
+        ref={audioRef} 
+        src={audioUrl || undefined} 
+        preload="auto"
+        className="hidden" 
+      />
 
       {/* Settings Panel */}
       <SettingsPanel
