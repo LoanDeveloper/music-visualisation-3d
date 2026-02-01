@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -10,7 +15,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RotateCcw, Save, Trash2, GripVertical } from 'lucide-react';
+import {
+  RotateCcw,
+  Save,
+  Trash2,
+  GripVertical,
+  ChevronDown,
+  Zap,
+  LayoutGrid,
+  Volume2,
+  Sparkles,
+  Shapes,
+  Play,
+  Wind,
+  Link,
+  Activity,
+  Headphones,
+} from 'lucide-react';
 import {
   getAllPresets,
   getPreset,
@@ -18,18 +39,39 @@ import {
   deleteCustomPreset,
   BUILT_IN_PRESETS,
 } from '@/utils/presets';
+import {
+  SETTINGS_SCHEMA,
+  SECTION_META,
+  SECTION_ORDER,
+  FieldType,
+  getSettingsBySection,
+  isSettingEnabled,
+} from '@/utils/settingsSchema';
+import { performanceMonitor } from '@/utils/performanceMonitor';
 import { useDraggable } from '@/hooks/useDraggable';
+
+// Icon mapping for sections
+const SECTION_ICONS = {
+  audio: Volume2,
+  particles: Sparkles,
+  distribution: Shapes,
+  animation: Play,
+  trails: Wind,
+  connections: Link,
+  advanced: Activity,
+  stereo: Headphones,
+};
 
 /**
  * Slider control with label and value display
  */
-const SliderControl = ({ label, value, min, max, step, onChange }) => {
+const SliderControl = ({ label, value, min, max, step, onChange, disabled }) => {
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
       <div className="flex justify-between items-center">
         <Label className="text-xs text-foreground/80">{label}</Label>
         <span className="text-xs text-foreground/50 font-mono tabular-nums">
-          {value.toFixed(step < 1 ? 2 : 0)}
+          {value.toFixed(step < 1 ? (step < 0.01 ? 3 : 2) : 0)}
         </span>
       </div>
       <Slider
@@ -38,27 +80,19 @@ const SliderControl = ({ label, value, min, max, step, onChange }) => {
         max={max}
         step={step}
         onValueChange={(v) => onChange(v[0])}
+        disabled={disabled}
       />
     </div>
   );
 };
 
 /**
- * Section header
- */
-const SectionTitle = ({ children }) => (
-  <h3 className="text-[10px] font-medium text-foreground/40 uppercase tracking-wider mb-3">
-    {children}
-  </h3>
-);
-
-/**
  * Select control with label
  */
-const SelectControl = ({ label, value, options, onChange }) => (
-  <div className="space-y-2">
+const SelectControl = ({ label, value, options, onChange, disabled }) => (
+  <div className={`space-y-2 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
     <Label className="text-xs text-foreground/80">{label}</Label>
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger className="w-full bg-white/5 border-white/10 text-foreground/90 h-8 text-xs">
         <SelectValue />
       </SelectTrigger>
@@ -76,22 +110,108 @@ const SelectControl = ({ label, value, options, onChange }) => (
 /**
  * Switch control with label
  */
-const SwitchControl = ({ label, checked, onChange }) => (
-  <div className="flex items-center justify-between py-1">
+const SwitchControl = ({ label, checked, onChange, disabled }) => (
+  <div className={`flex items-center justify-between py-1 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
     <Label className="text-xs text-foreground/80">{label}</Label>
-    <Switch checked={checked} onCheckedChange={onChange} />
+    <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
   </div>
 );
 
 /**
+ * Collapsible section component
+ */
+const SettingsSection = ({ sectionKey, isOpen, onToggle, children }) => {
+  const meta = SECTION_META[sectionKey];
+  const Icon = SECTION_ICONS[sectionKey] || Shapes;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={onToggle}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 group">
+        <div className="flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5 text-foreground/50" />
+          <span className="text-xs font-medium text-foreground/80">{meta.label}</span>
+        </div>
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-foreground/40 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-3 pb-3">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+/**
+ * Render a field based on its schema definition
+ */
+const renderField = (key, field, value, onChange, settings) => {
+  const enabled = isSettingEnabled(key, settings);
+
+  switch (field.type) {
+    case FieldType.SLIDER:
+      return (
+        <SliderControl
+          key={key}
+          label={field.label}
+          value={value}
+          min={field.min}
+          max={field.max}
+          step={field.step}
+          onChange={onChange}
+          disabled={!enabled}
+        />
+      );
+    case FieldType.SELECT:
+      return (
+        <SelectControl
+          key={key}
+          label={field.label}
+          value={value}
+          options={field.options}
+          onChange={onChange}
+          disabled={!enabled}
+        />
+      );
+    case FieldType.SWITCH:
+      return (
+        <SwitchControl
+          key={key}
+          label={field.label}
+          checked={value}
+          onChange={onChange}
+          disabled={!enabled}
+        />
+      );
+    default:
+      return null;
+  }
+};
+
+/**
  * SettingsPanel component
- * Transparent floating panel with all visualization parameters
+ * Notion-like floating panel with collapsible accordion sections
  */
 const SettingsPanel = ({ settings, onSettingsChange }) => {
   const [selectedPreset, setSelectedPreset] = useState('default');
   const [customPresetName, setCustomPresetName] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [presets, setPresets] = useState(getAllPresets());
+  const [lowPowerMode, setLowPowerMode] = useState(() => performanceMonitor.isLowPowerMode());
+  
+  // Section open states - audio open by default
+  const [openSections, setOpenSections] = useState({
+    audio: true,
+    particles: false,
+    distribution: false,
+    animation: false,
+    trails: false,
+    connections: false,
+    advanced: false,
+    stereo: false,
+  });
 
   // Draggable hook
   const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
@@ -99,12 +219,24 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
     { x: 16, y: 16 }
   );
 
-  const updateSetting = (key, value) => {
+  // Subscribe to low power mode changes
+  useEffect(() => {
+    const handleLowPowerChange = (isLowPower) => {
+      setLowPowerMode(isLowPower);
+    };
+    performanceMonitor.onLowPowerChange(handleLowPowerChange);
+    
+    return () => {
+      performanceMonitor.offLowPowerChange(handleLowPowerChange);
+    };
+  }, []);
+
+  const updateSetting = useCallback((key, value) => {
     onSettingsChange({
       ...settings,
       [key]: value,
     });
-  };
+  }, [settings, onSettingsChange]);
 
   const handlePresetChange = (presetName) => {
     setSelectedPreset(presetName);
@@ -133,21 +265,24 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
     }
   };
 
-  const distributionShapes = [
-    { value: 'sphere', label: 'Sphere' },
-    { value: 'spiral', label: 'Spirale / Galaxie' },
-    { value: 'atom', label: 'Atome / Moleculaire' },
-    { value: 'quantum', label: 'Quantique' },
-    { value: 'dna', label: 'ADN / Helix' },
-  ];
+  const toggleSection = (sectionKey) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
+  };
 
-  const particleShapes = [
-    { value: 'circle', label: 'Cercle' },
-    { value: 'square', label: 'Carre' },
-    { value: 'star', label: 'Etoile' },
-    { value: 'triangle', label: 'Triangle' },
-    { value: 'ring', label: 'Anneau' },
-  ];
+  const handleResetLayout = () => {
+    localStorage.removeItem('panel-positions');
+    window.location.reload();
+  };
+
+  const handleToggleLowPower = () => {
+    performanceMonitor.toggleLowPowerMode();
+  };
+
+  // Group settings by section
+  const settingsBySection = getSettingsBySection();
 
   const presetOptions = Object.entries(presets).map(([key, preset]) => ({
     value: key,
@@ -156,37 +291,64 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
   }));
 
   return (
-    <div 
+    <div
       ref={setRef}
-      className={`w-64 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
+      className={`w-72 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-black/50 backdrop-blur-xl shadow-2xl ${
+        isDragging ? 'shadow-2xl scale-[1.01]' : ''
+      }`}
       style={{ ...containerStyle, zIndex: isDragging ? 1000 : 50 }}
     >
       {/* Drag Handle */}
-      <div 
+      <div
         {...dragHandleProps}
-        className="flex items-center justify-center py-1.5 cursor-grab active:cursor-grabbing hover:bg-white/5 rounded-t-2xl transition-colors"
+        className="flex items-center justify-center py-2 cursor-grab active:cursor-grabbing hover:bg-white/5 rounded-t-2xl transition-colors border-b border-white/5"
       >
         <GripVertical className="h-4 w-4 text-foreground/30 rotate-90" />
       </div>
 
-      <div className="px-5 pb-5">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <span className="text-sm font-medium text-foreground/90">Parametres</span>
+      <div className="px-4 pb-4">
+        {/* Quick Actions Bar */}
+        <div className="flex items-center gap-1.5 py-3 border-b border-white/5 mb-3">
           <Button
             variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-foreground/50 hover:text-foreground hover:bg-white/10"
+            size="sm"
+            className={`h-7 px-2 text-xs ${
+              lowPowerMode
+                ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20'
+                : 'text-foreground/50 hover:text-foreground hover:bg-white/10'
+            }`}
+            onClick={handleToggleLowPower}
+            title={lowPowerMode ? 'Desactiver mode eco' : 'Activer mode eco'}
+          >
+            <Zap className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-foreground/50 hover:text-foreground hover:bg-white/10"
+            onClick={handleResetLayout}
+            title="Reinitialiser disposition"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+          </Button>
+          <div className="flex-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-foreground/50 hover:text-foreground hover:bg-white/10"
             onClick={() => onSettingsChange(null)}
+            title="Reinitialiser parametres"
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </Button>
         </div>
 
         {/* Presets Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Presets</SectionTitle>
-          
+        <div className="space-y-2 mb-4">
+          <Label className="text-[10px] font-medium text-foreground/40 uppercase tracking-wider">
+            Presets
+          </Label>
+
           <Select value={selectedPreset} onValueChange={handlePresetChange}>
             <SelectTrigger className="w-full bg-white/5 border-white/10 text-foreground/90 h-8 text-xs">
               <SelectValue placeholder="Choisir un preset" />
@@ -205,399 +367,78 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
             </SelectContent>
           </Select>
 
-          {/* Save preset */}
-          {showSaveInput ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={customPresetName}
-                onChange={(e) => setCustomPresetName(e.target.value)}
-                placeholder="Nom du preset"
-                className="flex-1 h-7 px-2 text-xs bg-white/5 border border-white/10 rounded text-foreground/90 placeholder:text-foreground/30"
-                onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
-              />
+          <div className="flex gap-1.5">
+            {showSaveInput ? (
+              <div className="flex gap-1.5 flex-1">
+                <input
+                  type="text"
+                  value={customPresetName}
+                  onChange={(e) => setCustomPresetName(e.target.value)}
+                  placeholder="Nom du preset"
+                  className="flex-1 h-7 px-2 text-xs bg-white/5 border border-white/10 rounded text-foreground/90 placeholder:text-foreground/30"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-foreground/50 hover:text-foreground hover:bg-white/10"
+                  onClick={handleSavePreset}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 h-7 text-xs text-foreground/50 hover:text-foreground hover:bg-white/10"
+                onClick={() => setShowSaveInput(true)}
+              >
+                <Save className="h-3 w-3 mr-1.5" />
+                Sauvegarder
+              </Button>
+            )}
+            {!BUILT_IN_PRESETS[selectedPreset] && selectedPreset && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-foreground/50 hover:text-foreground hover:bg-white/10"
-                onClick={handleSavePreset}
+                className="h-7 w-7 text-red-400/50 hover:text-red-400 hover:bg-red-400/10"
+                onClick={() => handleDeletePreset(selectedPreset)}
               >
-                <Save className="h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-7 text-xs bg-white/5 border-white/10 hover:bg-white/10"
-              onClick={() => setShowSaveInput(true)}
-            >
-              <Save className="h-3 w-3 mr-1.5" />
-              Sauvegarder preset
-            </Button>
-          )}
-
-          {/* Delete custom preset */}
-          {!BUILT_IN_PRESETS[selectedPreset] && selectedPreset && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full h-7 text-xs text-red-400/70 hover:text-red-400 hover:bg-red-400/10"
-              onClick={() => handleDeletePreset(selectedPreset)}
-            >
-              <Trash2 className="h-3 w-3 mr-1.5" />
-              Supprimer preset
-            </Button>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
+        <div className="h-px bg-white/10 mb-3" />
 
-        {/* Audio Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Audio</SectionTitle>
-          
-          <SliderControl
-            label="Sensibilite"
-            value={settings.sensitivity}
-            min={0.5}
-            max={3}
-            step={0.1}
-            onChange={(v) => updateSetting('sensitivity', v)}
-          />
-          <SliderControl
-            label="Bass"
-            value={settings.bassIntensity}
-            min={0}
-            max={3}
-            step={0.1}
-            onChange={(v) => updateSetting('bassIntensity', v)}
-          />
-          <SliderControl
-            label="Medium"
-            value={settings.midIntensity}
-            min={0}
-            max={3}
-            step={0.1}
-            onChange={(v) => updateSetting('midIntensity', v)}
-          />
-          <SliderControl
-            label="Aigus"
-            value={settings.highIntensity}
-            min={0}
-            max={3}
-            step={0.1}
-            onChange={(v) => updateSetting('highIntensity', v)}
-          />
-          <SliderControl
-            label="Lissage"
-            value={settings.smoothing}
-            min={0.1}
-            max={0.95}
-            step={0.05}
-            onChange={(v) => updateSetting('smoothing', v)}
-          />
-        </div>
+        {/* Settings Sections */}
+        <div className="divide-y divide-white/5">
+          {SECTION_ORDER.map((sectionKey) => {
+            const fields = settingsBySection[sectionKey];
+            if (!fields || fields.length === 0) return null;
 
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Distribution Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Distribution</SectionTitle>
-          
-          <SelectControl
-            label="Forme globale"
-            value={settings.shape}
-            options={distributionShapes}
-            onChange={(v) => updateSetting('shape', v)}
-          />
-          <SliderControl
-            label="Expansion"
-            value={settings.expansion}
-            min={0.5}
-            max={2}
-            step={0.1}
-            onChange={(v) => updateSetting('expansion', v)}
-          />
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Particles Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Particules</SectionTitle>
-          
-          <SliderControl
-            label="Nombre"
-            value={settings.particleCount}
-            min={1000}
-            max={25000}
-            step={1000}
-            onChange={(v) => updateSetting('particleCount', v)}
-          />
-          <SliderControl
-            label="Taille"
-            value={settings.particleSize}
-            min={1}
-            max={8}
-            step={0.5}
-            onChange={(v) => updateSetting('particleSize', v)}
-          />
-          <SelectControl
-            label="Forme particule"
-            value={settings.particleShape}
-            options={particleShapes}
-            onChange={(v) => updateSetting('particleShape', v)}
-          />
-          <SwitchControl
-            label="Taille reactive"
-            checked={settings.reactiveSize}
-            onChange={(v) => updateSetting('reactiveSize', v)}
-          />
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Trails Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Trainees</SectionTitle>
-          
-          <SwitchControl
-            label="Activer trainees"
-            checked={settings.trails}
-            onChange={(v) => updateSetting('trails', v)}
-          />
-          {settings.trails && (
-            <>
-              <SliderControl
-                label="Longueur"
-                value={settings.trailLength}
-                min={3}
-                max={20}
-                step={1}
-                onChange={(v) => updateSetting('trailLength', v)}
-              />
-              <SliderControl
-                label="Persistance"
-                value={settings.trailDecay}
-                min={0.8}
-                max={0.98}
-                step={0.01}
-                onChange={(v) => updateSetting('trailDecay', v)}
-              />
-              <SliderControl
-                label="Epaisseur"
-                value={settings.trailWidth}
-                min={0.5}
-                max={3}
-                step={0.5}
-                onChange={(v) => updateSetting('trailWidth', v)}
-              />
-            </>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Connections Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Connexions</SectionTitle>
-          
-          <SwitchControl
-            label="Activer connexions"
-            checked={settings.connections}
-            onChange={(v) => updateSetting('connections', v)}
-          />
-          {settings.connections && (
-            <>
-              <SliderControl
-                label="Distance max"
-                value={settings.connectionDistance}
-                min={10}
-                max={100}
-                step={5}
-                onChange={(v) => updateSetting('connectionDistance', v)}
-              />
-              <SliderControl
-                label="Opacite"
-                value={settings.connectionOpacity}
-                min={0.1}
-                max={0.8}
-                step={0.05}
-                onChange={(v) => updateSetting('connectionOpacity', v)}
-              />
-              <SliderControl
-                label="Nombre max"
-                value={settings.connectionMaxCount}
-                min={100}
-                max={2000}
-                step={100}
-                onChange={(v) => updateSetting('connectionMaxCount', v)}
-              />
-              <SliderControl
-                label="Epaisseur ligne"
-                value={settings.connectionLineWidth}
-                min={0.5}
-                max={3}
-                step={0.5}
-                onChange={(v) => updateSetting('connectionLineWidth', v)}
-              />
-            </>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Advanced Analysis Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Analyse Avancee</SectionTitle>
-          
-          <SwitchControl
-            label="Reaction au beat"
-            checked={settings.beatReactive}
-            onChange={(v) => updateSetting('beatReactive', v)}
-          />
-          {settings.beatReactive && (
-            <>
-              <SliderControl
-                label="Intensite beat"
-                value={settings.beatPulseIntensity}
-                min={0.2}
-                max={2}
-                step={0.1}
-                onChange={(v) => updateSetting('beatPulseIntensity', v)}
-              />
-              <SliderControl
-                label="Sensibilite beat"
-                value={settings.beatSensitivity}
-                min={0.5}
-                max={2}
-                step={0.1}
-                onChange={(v) => updateSetting('beatSensitivity', v)}
-              />
-            </>
-          )}
-          
-          <SwitchControl
-            label="Flash sur onsets"
-            checked={settings.onsetFlash}
-            onChange={(v) => updateSetting('onsetFlash', v)}
-          />
-          {settings.onsetFlash && (
-            <SliderControl
-              label="Sensibilite onset"
-              value={settings.onsetSensitivity}
-              min={0.5}
-              max={2}
-              step={0.1}
-              onChange={(v) => updateSetting('onsetSensitivity', v)}
-            />
-          )}
-          
-          <SwitchControl
-            label="Echelle RMS"
-            checked={settings.rmsScale}
-            onChange={(v) => updateSetting('rmsScale', v)}
-          />
-          
-          <SelectControl
-            label="Mode couleur spectral"
-            value={settings.spectralColorMode}
-            options={[
-              { value: 'none', label: 'Desactive' },
-              { value: 'centroid', label: 'Centroide (brillance)' },
-              { value: 'chroma', label: 'Chroma (notes)' },
-            ]}
-            onChange={(v) => updateSetting('spectralColorMode', v)}
-          />
-          {settings.spectralColorMode !== 'none' && (
-            <SliderControl
-              label="Intensite couleur"
-              value={settings.spectralColorIntensity}
-              min={0.1}
-              max={1}
-              step={0.1}
-              onChange={(v) => updateSetting('spectralColorIntensity', v)}
-            />
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Stereo Analysis Section */}
-        <div className="space-y-3 mb-5">
-          <SectionTitle>Stereo</SectionTitle>
-          
-          <SwitchControl
-            label="Effets stereo"
-            checked={settings.stereoEnabled}
-            onChange={(v) => updateSetting('stereoEnabled', v)}
-          />
-          {settings.stereoEnabled && (
-            <>
-              <SwitchControl
-                label="Separation L/R"
-                checked={settings.stereoSeparation}
-                onChange={(v) => updateSetting('stereoSeparation', v)}
-              />
-              <SliderControl
-                label="Largeur stereo"
-                value={settings.stereoWidthEffect}
-                min={0}
-                max={2}
-                step={0.1}
-                onChange={(v) => updateSetting('stereoWidthEffect', v)}
-              />
-              <SliderControl
-                label="Effet panning"
-                value={settings.stereoPanningEffect}
-                min={0}
-                max={2}
-                step={0.1}
-                onChange={(v) => updateSetting('stereoPanningEffect', v)}
-              />
-              <SliderControl
-                label="Couleurs L/R"
-                value={settings.stereoColorIntensity}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={(v) => updateSetting('stereoColorIntensity', v)}
-              />
-            </>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mb-5" />
-
-        {/* Animation Section */}
-        <div className="space-y-3">
-          <SectionTitle>Animation</SectionTitle>
-          
-          <SliderControl
-            label="Rotation"
-            value={settings.rotationSpeed}
-            min={0}
-            max={0.05}
-            step={0.001}
-            onChange={(v) => updateSetting('rotationSpeed', v)}
-          />
-          <SliderControl
-            label="Vitesse"
-            value={settings.animationSpeed}
-            min={0.5}
-            max={2}
-            step={0.1}
-            onChange={(v) => updateSetting('animationSpeed', v)}
-          />
+            return (
+              <SettingsSection
+                key={sectionKey}
+                sectionKey={sectionKey}
+                isOpen={openSections[sectionKey]}
+                onToggle={() => toggleSection(sectionKey)}
+              >
+                {fields.map(({ key, ...field }) =>
+                  renderField(
+                    key,
+                    field,
+                    settings[key],
+                    (value) => updateSetting(key, value),
+                    settings
+                  )
+                )}
+              </SettingsSection>
+            );
+          })}
         </div>
       </div>
     </div>
