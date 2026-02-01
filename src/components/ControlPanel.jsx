@@ -178,14 +178,14 @@ const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }
             disabled={!canPlay}
             title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
           >
-            {isPlaying ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4 ml-0.5" />
-            )}
-            {!canPlay && (
-              <Loader2 className="absolute h-4 w-4 animate-spin text-foreground/70" />
-            )}
+          {isPlaying ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            canPlay && <Play className="h-4 w-4 ml-0.5" />
+          )}
+          {!canPlay && (
+            <Loader2 className="absolute h-4 w-4 animate-spin text-foreground/70" />
+          )}
           </Button>
           {!canPlay && playBlockedReason && (
             <span className="text-[10px] text-muted-foreground text-center">
