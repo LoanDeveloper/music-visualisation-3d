@@ -502,8 +502,15 @@ function App() {
       )}
 
       {analysisStatus !== 'idle' && (
-        <div className="fixed bottom-16 right-4 z-[5] px-2.5 py-1.5 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/70 border border-white/10">
-          {analysisStatus === 'analyzing' && 'Analyse audio en cours...'}
+        <div className="fixed bottom-16 right-4 z-[5] px-2.5 py-2 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/70 border border-white/10 min-w-[180px]">
+          {analysisStatus === 'analyzing' && (
+            <div className="space-y-1.5">
+              <div>Analyse audio en cours...</div>
+              <div className="analysis-progress">
+                <div className="analysis-progress-bar" />
+              </div>
+            </div>
+          )}
           {analysisStatus === 'ready' && 'Analyse audio prête'}
           {analysisStatus === 'failed' && `Analyse audio échouée${analysisError ? `: ${analysisError}` : ''}`}
         </div>

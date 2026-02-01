@@ -169,20 +169,27 @@ const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }
       </div>
 
       <div className="flex items-center gap-4">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-10 w-10 rounded-full shrink-0"
-          onClick={togglePlayPause}
-          disabled={!canPlay}
-          title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
-        >
-          {isPlaying ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4 ml-0.5" />
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-10 w-10 rounded-full shrink-0"
+            onClick={togglePlayPause}
+            disabled={!canPlay}
+            title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4 ml-0.5" />
+            )}
+          </Button>
+          {!canPlay && playBlockedReason && (
+            <span className="text-[10px] text-muted-foreground text-center">
+              {playBlockedReason}
+            </span>
           )}
-        </Button>
+        </div>
 
         <div className="flex items-center gap-3 flex-1">
           <span className="text-xs text-muted-foreground min-w-[36px] text-right font-mono tabular-nums">
