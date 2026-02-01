@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Pause, Volume2, GripVertical } from 'lucide-react';
+import { Play, Pause, Volume2, GripVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useDraggable } from '@/hooks/useDraggable';
@@ -173,7 +173,7 @@ const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }
           <Button
             variant="secondary"
             size="icon"
-            className="h-10 w-10 rounded-full shrink-0"
+            className="h-10 w-10 rounded-full shrink-0 relative"
             onClick={togglePlayPause}
             disabled={!canPlay}
             title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
@@ -182,6 +182,9 @@ const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }
               <Pause className="h-4 w-4" />
             ) : (
               <Play className="h-4 w-4 ml-0.5" />
+            )}
+            {!canPlay && (
+              <Loader2 className="absolute h-4 w-4 animate-spin text-foreground/70" />
             )}
           </Button>
           {!canPlay && playBlockedReason && (
