@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Pause, Volume2, GripVertical } from 'lucide-react';
+import { Play, Pause, Volume2, GripVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useDraggable } from '@/hooks/useDraggable';
@@ -8,7 +8,7 @@ import { useDraggable } from '@/hooks/useDraggable';
  * ControlPanel component
  * Provides audio playback controls (play/pause, progress, volume)
  */
-const ControlPanel = ({ audioRef, audioName }) => {
+const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -89,6 +89,9 @@ const ControlPanel = ({ audioRef, audioName }) => {
     if (!audio) return;
 
     if (audio.paused) {
+      if (!canPlay) {
+        return;
+      }
       try {
         console.log('[ControlPanel] Attempting to play audio...');
         console.log('[ControlPanel] Audio state:', {
@@ -166,18 +169,30 @@ const ControlPanel = ({ audioRef, audioName }) => {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-10 w-10 rounded-full shrink-0"
-          onClick={togglePlayPause}
-        >
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-10 w-10 rounded-full shrink-0 relative"
+            onClick={togglePlayPause}
+            disabled={!canPlay}
+            title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
+          >
           {isPlaying ? (
             <Pause className="h-4 w-4" />
           ) : (
-            <Play className="h-4 w-4 ml-0.5" />
+            canPlay && <Play className="h-4 w-4 ml-0.5" />
           )}
-        </Button>
+          {!canPlay && (
+            <Loader2 className="absolute h-4 w-4 animate-spin text-foreground/70" />
+          )}
+          </Button>
+          {!canPlay && playBlockedReason && (
+            <span className="text-[10px] text-muted-foreground text-center">
+              {playBlockedReason}
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 flex-1">
           <span className="text-xs text-muted-foreground min-w-[36px] text-right font-mono tabular-nums">
