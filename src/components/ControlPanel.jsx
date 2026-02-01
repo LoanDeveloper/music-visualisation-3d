@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Pause, Volume2, GripVertical } from 'lucide-react';
+import { Play, Pause, Volume2, GripVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useDraggable } from '@/hooks/useDraggable';
@@ -8,7 +8,7 @@ import { useDraggable } from '@/hooks/useDraggable';
  * ControlPanel component
  * Provides audio playback controls (play/pause, progress, volume)
  */
-const ControlPanel = ({ audioRef, audioName }) => {
+const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -26,27 +26,98 @@ const ControlPanel = ({ audioRef, audioName }) => {
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
+    const handleEnded = () => {
+      console.log('[ControlPanel] Audio ended');
+      setIsPlaying(false);
+    };
+    const handlePlay = () => {
+      console.log('[ControlPanel] Playing');
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      console.log('[ControlPanel] Paused');
+      setIsPlaying(false);
+    };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    
+    // Debugging events
+    const handleLoadStart = () => console.log('[ControlPanel] Load start');
+    const handleCanPlay = () => console.log('[ControlPanel] Can play');
+    const handleCanPlayThrough = () => console.log('[ControlPanel] Can play through');
+    const handleSeeking = () => console.log('[ControlPanel] Seeking');
+    const handleSeeked = () => console.log('[ControlPanel] Seeked');
+    const handleStalled = () => console.warn('[ControlPanel] Stalled');
+    const handleWaiting = () => console.warn('[ControlPanel] Waiting');
+    const handleSuspend = () => console.warn('[ControlPanel] Suspend');
+    
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
+    audio.addEventListener('seeking', handleSeeking);
+    audio.addEventListener('seeked', handleSeeked);
+    audio.addEventListener('stalled', handleStalled);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('suspend', handleSuspend);
+
+    // Sync initial state
+    setIsPlaying(!audio.paused);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      audio.removeEventListener('seeking', handleSeeking);
+      audio.removeEventListener('seeked', handleSeeked);
+      audio.removeEventListener('stalled', handleStalled);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('suspend', handleSuspend);
     };
   }, [audioRef]);
 
-  const togglePlayPause = () => {
+  const togglePlayPause = async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (audio.paused) {
-      audio.play();
-      setIsPlaying(true);
+      if (!canPlay) {
+        return;
+      }
+      try {
+        console.log('[ControlPanel] Attempting to play audio...');
+        console.log('[ControlPanel] Audio state:', {
+          src: audio.src ? 'loaded' : 'no source',
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+          currentTime: audio.currentTime,
+          duration: audio.duration,
+        });
+        
+        await audio.play();
+        setIsPlaying(true);
+        
+        console.log('[ControlPanel] Play successful');
+      } catch (error) {
+        console.error('[ControlPanel] Failed to play audio:', error);
+        console.log('[ControlPanel] Audio error state:', {
+          error: audio.error ? audio.error.message : 'none',
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+        });
+        // Most common error: user hasn't interacted with the page yet
+        // The audio will play once they click again
+      }
     } else {
+      console.log('[ControlPanel] Pausing audio at time:', audio.currentTime);
       audio.pause();
       setIsPlaying(false);
     }
@@ -98,18 +169,30 @@ const ControlPanel = ({ audioRef, audioName }) => {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-10 w-10 rounded-full shrink-0"
-          onClick={togglePlayPause}
-        >
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-10 w-10 rounded-full shrink-0 relative"
+            onClick={togglePlayPause}
+            disabled={!canPlay}
+            title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
+          >
           {isPlaying ? (
             <Pause className="h-4 w-4" />
           ) : (
-            <Play className="h-4 w-4 ml-0.5" />
+            canPlay && <Play className="h-4 w-4 ml-0.5" />
           )}
-        </Button>
+          {!canPlay && (
+            <Loader2 className="absolute h-4 w-4 animate-spin text-foreground/70" />
+          )}
+          </Button>
+          {!canPlay && playBlockedReason && (
+            <span className="text-[10px] text-muted-foreground text-center">
+              {playBlockedReason}
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 flex-1">
           <span className="text-xs text-muted-foreground min-w-[36px] text-right font-mono tabular-nums">

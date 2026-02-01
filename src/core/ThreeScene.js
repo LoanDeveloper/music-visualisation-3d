@@ -76,7 +76,7 @@ class ThreeScene {
     // Start animation loop
     this.startAnimation();
 
-    console.log('ThreeScene initialized');
+    if (import.meta.env.DEV) console.log('[ThreeScene] Initialized');
   }
 
   /**
@@ -113,15 +113,16 @@ class ThreeScene {
       );
     }
     
-    // Log significant audio activity
-    const total = frequencyBands.bass + frequencyBands.mid + frequencyBands.high;
-    if (total > 0.1) {
-      // Only log when there's actual audio
-      this.lastLogTime = this.lastLogTime || 0;
-      const now = Date.now();
-      if (now - this.lastLogTime > 1000) {
-        console.log('[ThreeScene] Receiving audio data:', frequencyBands);
-        this.lastLogTime = now;
+    // Log significant audio activity (DEV only)
+    if (import.meta.env.DEV) {
+      const total = frequencyBands.bass + frequencyBands.mid + frequencyBands.high;
+      if (total > 0.1) {
+        this.lastLogTime = this.lastLogTime || 0;
+        const now = Date.now();
+        if (now - this.lastLogTime > 2000) {
+          console.log('[ThreeScene] Receiving audio data:', frequencyBands);
+          this.lastLogTime = now;
+        }
       }
     }
   }
@@ -198,7 +199,7 @@ class ThreeScene {
       this.particleSystem.updateTheme(this.palette);
     }
 
-    console.log(`Theme updated to: ${paletteName}`);
+    if (import.meta.env.DEV) console.log(`[ThreeScene] Theme updated to: ${paletteName}`);
   }
 
 /**
@@ -228,7 +229,7 @@ class ThreeScene {
       this.particleSystem.updateSettings(settings);
     }
 
-    console.log('[ThreeScene] Settings updated:', settings);
+    if (import.meta.env.DEV) console.log('[ThreeScene] Settings updated:', settings);
   }
 
   /**
@@ -347,7 +348,7 @@ class ThreeScene {
     this.camera = null;
     this.canvas = null;
 
-    console.log('ThreeScene destroyed');
+    if (import.meta.env.DEV) console.log('[ThreeScene] Destroyed');
   }
 }
 

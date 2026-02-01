@@ -128,6 +128,36 @@ body {
   cursor: grabbing;
 }
 
+.analysis-progress {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.analysis-progress-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  animation: analysis-progress 1.2s ease-in-out infinite;
+}
+
+@keyframes analysis-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  50% {
+    transform: translateX(20%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
 .drag-handle-left {
   width: 20px;
   min-height: 40px;

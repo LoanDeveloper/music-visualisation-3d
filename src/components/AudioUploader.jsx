@@ -62,7 +62,7 @@ const AudioUploader = ({ onFileSelect, hasAudio, audioName }) => {
 
     // Create URL for audio file
     const url = URL.createObjectURL(file);
-    onFileSelect(url, file.name);
+    onFileSelect(url, file.name, file);
   };
 
   const handleReset = () => {
