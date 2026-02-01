@@ -58,7 +58,7 @@ const AudioUploader = ({ onFileSelect, hasAudio }) => {
       const url = URL.createObjectURL(file);
       console.log('[AudioUploader] Loading audio:', file.name, 'Size:', Math.round(file.size / 1024 / 1024) + 'MB');
       
-      onFileSelect(url, file.name);
+      onFileSelect(url, file.name, file);
     } catch (error) {
       console.error('[AudioUploader] File validation failed:', error);
       alert(`Erreur: ${error.message}`);

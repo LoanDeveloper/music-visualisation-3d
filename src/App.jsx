@@ -8,6 +8,7 @@ import ZoomControl from '@/components/ZoomControl';
 import SettingsPanel from '@/components/SettingsPanel';
 import HumanLayerControls from '@/components/HumanLayerControls';
 import useAudioAnalysis from '@/hooks/useAudioAnalysis';
+import platform from '@/utils/platform';
 import { DEFAULT_PRESET, DEFAULT_POSE } from '@/utils/humanPresets';
 import './App.css';
 
@@ -62,6 +63,9 @@ const DEFAULT_SETTINGS = {
 function App() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioName, setAudioName] = useState('');
+  const [analysisData, setAnalysisData] = useState(null);
+  const [analysisStatus, setAnalysisStatus] = useState('idle');
+  const [analysisError, setAnalysisError] = useState(null);
   const [currentTheme, setCurrentTheme] = useState('aurora');
   const [visualSettings, setVisualSettings] = useState(DEFAULT_SETTINGS);
 
@@ -74,6 +78,8 @@ function App() {
 
   const audioRef = useRef(null);
   const sceneRef = useRef(null);
+  const analysisRafRef = useRef(null);
+  const isAnalysisRunningRef = useRef(false);
 
   // Handle settings change
   const handleSettingsChange = useCallback((newSettings) => {
@@ -136,8 +142,94 @@ function App() {
     visualSettings
   );
 
+  const startPrecomputedAnalysis = useCallback(() => {
+    if (!analysisData?.frames?.length) {
+      return;
+    }
+
+    if (!audioRef.current || !sceneRef.current) {
+      return;
+    }
+
+    if (isAnalysisRunningRef.current) {
+      return;
+    }
+
+    const { frames, sampleRate, hopSize, frameRate: providedRate } = analysisData;
+    const frameRate = providedRate || (sampleRate / hopSize);
+    const maxIndex = frames.length - 1;
+
+    isAnalysisRunningRef.current = true;
+
+    const tick = () => {
+      if (!isAnalysisRunningRef.current) return;
+
+      const currentTime = audioRef.current.currentTime || 0;
+      const index = Math.min(Math.floor(currentTime * frameRate), maxIndex);
+      const frame = frames[index] || frames[maxIndex];
+
+      sceneRef.current.updateFrequencyBands({
+        bass: frame.bass,
+        mid: frame.mid,
+        high: frame.high,
+        spectralCentroid: 0,
+        spectralFlux: 0,
+        spectralRolloff: 0,
+        zeroCrossingRate: 0,
+        rms: frame.rms,
+        isBeat: false,
+        beatIntensity: 0,
+        bpm: 0,
+        bassEnergy: 0,
+        isOnset: false,
+        onsetIntensity: 0,
+        chroma: null,
+        dominantPitch: 0,
+        stereo: null,
+      });
+
+      analysisRafRef.current = requestAnimationFrame(tick);
+    };
+
+    tick();
+  }, [analysisData]);
+
+  const stopPrecomputedAnalysis = useCallback(() => {
+    isAnalysisRunningRef.current = false;
+    if (analysisRafRef.current) {
+      cancelAnimationFrame(analysisRafRef.current);
+      analysisRafRef.current = null;
+    }
+  }, []);
+
+  const analyzeFile = useCallback(async (file) => {
+    const apiBase = import.meta.env.VITE_API_URL || '';
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${apiBase}/api/analyze`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Analyse impossible');
+      }
+
+      const data = await response.json();
+      setAnalysisData(data);
+      setAnalysisStatus('ready');
+    } catch (error) {
+      console.error('[App] Backend analysis failed:', error);
+      setAnalysisError(error.message || 'Analyse impossible');
+      setAnalysisStatus('failed');
+    }
+  }, []);
+
   // Handle audio file selection
-  const handleFileSelect = (url, name) => {
+  const handleFileSelect = (url, name, file) => {
     console.log('[App] File selected:', name);
     
     // Pause current audio if playing
@@ -147,20 +239,34 @@ function App() {
     
     // Stop analysis loop (but don't destroy the analyzer)
     stopAnalysis();
+    stopPrecomputedAnalysis();
     
     // Update URL and name (audio element stays the same, only src changes)
     setAudioUrl(url);
     setAudioName(name);
+    setAnalysisData(null);
+    setAnalysisError(null);
+    setAnalysisStatus(file ? 'analyzing' : 'idle');
 
     // Reset position
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
+    }
+
+    if (file) {
+      analyzeFile(file);
     }
   };
 
   // Initialize audio analyzer when audio element is ready
   useEffect(() => {
     if (audioUrl && audioRef.current) {
+      if (platform.isProblematicPlatform()) {
+        return;
+      }
+      if (analysisStatus === 'analyzing' || analysisStatus === 'ready') {
+        return;
+      }
       if (import.meta.env.DEV) console.log('[App] Audio URL set, initializing analyzer...');
       // Small delay to ensure audio element is fully mounted
       const timer = setTimeout(() => {
@@ -170,7 +276,7 @@ function App() {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [audioUrl, initialize]);
+  }, [audioUrl, analysisStatus, initialize]);
 
   // Handle audio play/pause events
   useEffect(() => {
@@ -187,7 +293,11 @@ function App() {
           readyState: audio.readyState,
         });
       }
-      startAnalysis();
+      if (analysisData) {
+        startPrecomputedAnalysis();
+      } else if (analysisStatus !== 'analyzing' && !platform.isProblematicPlatform()) {
+        startAnalysis();
+      }
     };
 
     const handlePause = () => {
@@ -202,6 +312,7 @@ function App() {
           readyState: audio.readyState,
         });
       }
+      stopPrecomputedAnalysis();
       stopAnalysis();
     };
 
@@ -238,7 +349,11 @@ function App() {
 
     // If audio is already playing, start analysis
     if (!audio.paused) {
-      startAnalysis();
+      if (analysisData) {
+        startPrecomputedAnalysis();
+      } else if (analysisStatus !== 'analyzing' && !platform.isProblematicPlatform()) {
+        startAnalysis();
+      }
     }
 
     return () => {
@@ -250,7 +365,13 @@ function App() {
       audio.removeEventListener('suspend', handleSuspend);
       audio.removeEventListener('waiting', handleWaiting);
     };
-  }, [audioUrl, startAnalysis, stopAnalysis]);
+  }, [audioUrl, analysisData, analysisStatus, startAnalysis, startPrecomputedAnalysis, stopAnalysis, stopPrecomputedAnalysis]);
+
+  useEffect(() => {
+    if (analysisData && audioRef.current && !audioRef.current.paused) {
+      startPrecomputedAnalysis();
+    }
+  }, [analysisData, startPrecomputedAnalysis]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -369,6 +490,14 @@ function App() {
             <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">1-9</kbd>
             Themes
           </div>
+        </div>
+      )}
+
+      {analysisStatus !== 'idle' && (
+        <div className="fixed bottom-16 right-4 z-[5] px-2.5 py-1.5 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/70 border border-white/10">
+          {analysisStatus === 'analyzing' && 'Analyse audio en cours...'}
+          {analysisStatus === 'ready' && 'Analyse audio prête'}
+          {analysisStatus === 'failed' && `Analyse audio échouée${analysisError ? `: ${analysisError}` : ''}`}
         </div>
       )}
     </div>
