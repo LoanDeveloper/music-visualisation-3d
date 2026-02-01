@@ -380,6 +380,9 @@ function App() {
       if (e.code === 'Space' && audioRef.current) {
         e.preventDefault();
         if (audioRef.current.paused) {
+          if (analysisStatus === 'analyzing') {
+            return;
+          }
           audioRef.current.play();
         } else {
           audioRef.current.pause();
@@ -419,7 +422,7 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [analysisStatus]);
 
   return (
     <div className="app">
@@ -463,7 +466,12 @@ function App() {
 
       {audioUrl && (
         <>
-          <ControlPanel audioRef={audioRef} audioName={audioName} />
+          <ControlPanel
+            audioRef={audioRef}
+            audioName={audioName}
+            canPlay={analysisStatus !== 'analyzing'}
+            playBlockedReason="Analyse audio en cours"
+          />
           <ThemeSelector
             currentTheme={currentTheme}
             onThemeChange={setCurrentTheme}

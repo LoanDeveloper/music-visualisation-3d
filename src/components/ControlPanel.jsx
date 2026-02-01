@@ -8,7 +8,7 @@ import { useDraggable } from '@/hooks/useDraggable';
  * ControlPanel component
  * Provides audio playback controls (play/pause, progress, volume)
  */
-const ControlPanel = ({ audioRef, audioName }) => {
+const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -89,6 +89,9 @@ const ControlPanel = ({ audioRef, audioName }) => {
     if (!audio) return;
 
     if (audio.paused) {
+      if (!canPlay) {
+        return;
+      }
       try {
         console.log('[ControlPanel] Attempting to play audio...');
         console.log('[ControlPanel] Audio state:', {
@@ -171,6 +174,8 @@ const ControlPanel = ({ audioRef, audioName }) => {
           size="icon"
           className="h-10 w-10 rounded-full shrink-0"
           onClick={togglePlayPause}
+          disabled={!canPlay}
+          title={!canPlay && playBlockedReason ? playBlockedReason : undefined}
         >
           {isPlaying ? (
             <Pause className="h-4 w-4" />
