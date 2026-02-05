@@ -457,20 +457,9 @@ export function createBody(pose = 'open') {
   
   // Merge all parts
   const body = mergeGeometries(parts);
-  
-  // Center at origin (feet at y=0)
-  // Find min Y and translate
-  let minY = Infinity;
-  for (let i = 1; i < body.positions.length; i += 3) {
-    if (body.positions[i] < minY) {
-      minY = body.positions[i];
-    }
-  }
-  
-  // Translate so feet are at y=0
-  for (let i = 1; i < body.positions.length; i += 3) {
-    body.positions[i] -= minY;
-  }
-  
+
+  // Keep the same local reference frame as Veins/Brain/Heart.
+  // HumanLayer recenters the whole pose group at load time, so per-part
+  // normalization here would desynchronize layer alignment.
   return body;
 }
