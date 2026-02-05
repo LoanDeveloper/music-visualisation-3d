@@ -31,6 +31,7 @@ import {
   Link,
   Activity,
   Headphones,
+  User,
 } from 'lucide-react';
 import {
   getAllPresets,
@@ -60,6 +61,7 @@ const SECTION_ICONS = {
   connections: Link,
   advanced: Activity,
   stereo: Headphones,
+  human: User,
 };
 
 /**
@@ -206,6 +208,7 @@ const SettingsPanel = ({ settings, onSettingsChange }) => {
     audio: true,
     particles: false,
     distribution: false,
+    human: false,
     animation: false,
     trails: false,
     connections: false,

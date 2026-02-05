@@ -6,12 +6,19 @@
  * Body, Veins, Brain, Heart layer opacities and effects.
  */
 
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+const driveBand = (value, gain = 1.8, curve = 0.8) => {
+  const driven = clamp01(value * gain);
+  return Math.pow(driven, curve);
+};
+
 // Layer visibility minimum values (always slightly visible when enabled)
 export const LAYER_MINIMUMS = {
-  body: 0.05,
-  veins: 0.05,
-  brain: 0.03,
-  heart: 0.05,
+  body: 0.20,
+  veins: 0.07,
+  brain: 0.06,
+  heart: 0.08,
 };
 
 // Smoothing factor for frequency band interpolation
@@ -21,7 +28,8 @@ export const SMOOTHING_FACTOR = 0.12;
 export const EDGE_THRESHOLD_ANGLE = 20;
 
 // Pose crossfade duration (in seconds)
-export const POSE_CROSSFADE_DURATION = 0.5;
+// Set to 0 to avoid double arms/legs visibility between poses
+export const POSE_CROSSFADE_DURATION = 0;
 
 /**
  * Preset definitions
@@ -36,56 +44,80 @@ export const HUMAN_PRESETS = {
     id: 'VEINS_FLOW',
     name: 'Veines Flow',
     description: 'La musique voyage a travers les veines',
-    compute: (sb, sm, sh) => ({
-      bodyOpacity: LAYER_MINIMUMS.body + 0.15 * sb,
-      veinsOpacity: LAYER_MINIMUMS.veins + 0.8 * (0.6 * sb + 0.4 * sm),
-      brainOpacity: LAYER_MINIMUMS.brain + 0.08 * sh,
-      heartOpacity: LAYER_MINIMUMS.heart + 0.2 * sb,
-      heartScale: 1 + 0.04 * sb,
-      veinsFlowSpeed: 0.2 + 1.2 * (0.7 * sm + 0.3 * sb),
-    }),
+    compute: (sb, sm, sh) => {
+      const b = driveBand(sb, 2.15, 0.74);
+      const m = driveBand(sm, 1.95, 0.80);
+      const h = driveBand(sh, 1.75, 0.90);
+      const vesselEnergy = clamp01(0.58 * b + 0.32 * m + 0.10 * h);
+      return {
+        bodyOpacity: clamp01(LAYER_MINIMUMS.body + 0.24 * (0.45 * b + 0.55 * m)),
+        veinsOpacity: clamp01(LAYER_MINIMUMS.veins + 0.74 * vesselEnergy),
+        brainOpacity: clamp01(LAYER_MINIMUMS.brain + 0.14 * (0.35 * m + 0.65 * h)),
+        heartOpacity: clamp01(LAYER_MINIMUMS.heart + 0.34 * (0.85 * b + 0.15 * m)),
+        heartScale: 1 + 0.08 * b,
+        veinsFlowSpeed: 0.28 + 1.55 * (0.55 * m + 0.45 * b),
+      };
+    },
   },
   
   BRAIN_FOCUS: {
     id: 'BRAIN_FOCUS',
     name: 'Cerveau Focus',
     description: 'La musique est le cerveau (aigus/mediums)',
-    compute: (sb, sm, sh) => ({
-      bodyOpacity: LAYER_MINIMUMS.body + 0.12 * sm,
-      veinsOpacity: LAYER_MINIMUMS.veins + 0.15 * sm,
-      brainOpacity: LAYER_MINIMUMS.brain + 0.75 * (0.4 * sm + 0.6 * sh),
-      heartOpacity: LAYER_MINIMUMS.heart + 0.12 * sb,
-      heartScale: 1 + 0.03 * sb,
-      veinsFlowSpeed: 0.2 + 0.4 * sm,
-    }),
+    compute: (sb, sm, sh) => {
+      const b = driveBand(sb, 1.75, 0.86);
+      const m = driveBand(sm, 2.05, 0.76);
+      const h = driveBand(sh, 2.25, 0.70);
+      const brainEnergy = clamp01(0.68 * h + 0.32 * m);
+      return {
+        bodyOpacity: clamp01(LAYER_MINIMUMS.body + 0.18 * (0.35 * b + 0.65 * m)),
+        veinsOpacity: clamp01(LAYER_MINIMUMS.veins + 0.20 * (0.30 * b + 0.70 * m)),
+        brainOpacity: clamp01(LAYER_MINIMUMS.brain + 0.82 * brainEnergy),
+        heartOpacity: clamp01(LAYER_MINIMUMS.heart + 0.16 * (0.85 * b + 0.15 * m)),
+        heartScale: 1 + 0.03 * b + 0.02 * h,
+        veinsFlowSpeed: 0.24 + 0.55 * m + 0.20 * h,
+      };
+    },
   },
   
   HEART_CORE: {
     id: 'HEART_CORE',
     name: 'Coeur Core',
     description: 'La musique est le coeur (basses)',
-    compute: (sb, sm, sh) => ({
-      bodyOpacity: LAYER_MINIMUMS.body + 0.1 * sb,
-      veinsOpacity: LAYER_MINIMUMS.veins + 0.4 * sb,
-      brainOpacity: LAYER_MINIMUMS.brain + 0.07 * sh,
-      heartOpacity: LAYER_MINIMUMS.heart + 0.75 * sb,
-      heartScale: 1 + 0.12 * sb,
-      veinsFlowSpeed: 0.3 + 0.8 * sb,
-    }),
+    compute: (sb, sm, sh) => {
+      const b = driveBand(sb, 2.35, 0.68);
+      const m = driveBand(sm, 1.70, 0.86);
+      const h = driveBand(sh, 1.45, 1.00);
+      const coreEnergy = clamp01(0.86 * b + 0.14 * m);
+      return {
+        bodyOpacity: clamp01(LAYER_MINIMUMS.body + 0.26 * coreEnergy),
+        veinsOpacity: clamp01(LAYER_MINIMUMS.veins + 0.34 * coreEnergy),
+        brainOpacity: clamp01(LAYER_MINIMUMS.brain + 0.10 * (0.30 * m + 0.70 * h)),
+        heartOpacity: clamp01(LAYER_MINIMUMS.heart + 0.88 * coreEnergy),
+        heartScale: 1 + 0.16 * coreEnergy,
+        veinsFlowSpeed: 0.25 + 1.05 * coreEnergy,
+      };
+    },
   },
   
   FULL_BODY_NETWORK: {
     id: 'FULL_BODY_NETWORK',
     name: 'Reseau Complet',
     description: 'Silhouette + veines + organes equilibres',
-    compute: (sb, sm, sh) => ({
-      bodyOpacity: LAYER_MINIMUMS.body + 0.35 * (0.4 * sb + 0.3 * sm + 0.3 * sh),
-      veinsOpacity: LAYER_MINIMUMS.veins + 0.4 * (0.4 * sb + 0.4 * sm + 0.2 * sh),
-      brainOpacity: LAYER_MINIMUMS.brain + 0.3 * (0.2 * sm + 0.8 * sh),
-      heartOpacity: LAYER_MINIMUMS.heart + 0.35 * sb,
-      heartScale: 1 + 0.06 * sb,
-      veinsFlowSpeed: 0.2 + 0.6 * (0.5 * sb + 0.5 * sm),
-    }),
+    compute: (sb, sm, sh) => {
+      const b = driveBand(sb, 2.00, 0.76);
+      const m = driveBand(sm, 1.95, 0.80);
+      const h = driveBand(sh, 1.90, 0.84);
+      const balance = clamp01(0.40 * b + 0.35 * m + 0.25 * h);
+      return {
+        bodyOpacity: clamp01(LAYER_MINIMUMS.body + 0.46 * balance),
+        veinsOpacity: clamp01(LAYER_MINIMUMS.veins + 0.48 * (0.45 * b + 0.35 * m + 0.20 * h)),
+        brainOpacity: clamp01(LAYER_MINIMUMS.brain + 0.46 * (0.30 * m + 0.70 * h)),
+        heartOpacity: clamp01(LAYER_MINIMUMS.heart + 0.45 * (0.70 * b + 0.30 * m)),
+        heartScale: 1 + 0.09 * (0.70 * b + 0.30 * balance),
+        veinsFlowSpeed: 0.25 + 0.90 * (0.45 * m + 0.35 * b + 0.20 * h),
+      };
+    },
   },
 };
 

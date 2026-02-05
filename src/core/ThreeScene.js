@@ -55,6 +55,7 @@ class ThreeScene {
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
+      stencil: true,
       alpha: false,
     });
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
@@ -229,6 +230,21 @@ class ThreeScene {
       this.particleSystem.updateSettings(settings);
     }
 
+    if (this.humanLayer) {
+      if (typeof settings.humanOpacity === 'number') {
+        this.humanLayer.setHumanOpacity(settings.humanOpacity);
+      }
+      if (typeof settings.bodyOpacity === 'number') {
+        this.humanLayer.setBodyOpacity(settings.bodyOpacity);
+      }
+      if (typeof settings.humanLineOpacity === 'number') {
+        this.humanLayer.setLineOpacity(settings.humanLineOpacity);
+      }
+      if (typeof settings.humanFlowOpacity === 'number') {
+        this.humanLayer.setFlowOpacity(settings.humanFlowOpacity);
+      }
+    }
+
     if (import.meta.env.DEV) console.log('[ThreeScene] Settings updated:', settings);
   }
 
@@ -272,7 +288,11 @@ class ThreeScene {
    */
   async setHumanLayerEnabled(enabled) {
     if (this.humanLayer) {
-      return await this.humanLayer.setEnabled(enabled);
+      const ok = await this.humanLayer.setEnabled(enabled);
+      if (this.particleSystem) {
+        this.particleSystem.setStencilMask(enabled && ok);
+      }
+      return ok;
     }
     return false;
   }

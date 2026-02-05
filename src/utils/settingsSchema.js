@@ -25,6 +25,7 @@ export const SettingsSections = {
   CONNECTIONS: 'connections',
   ADVANCED: 'advanced',
   STEREO: 'stereo',
+  HUMAN: 'human',
 };
 
 /**
@@ -77,6 +78,12 @@ export const SECTION_META = {
     label: 'Stereo',
     description: 'Effets stereo gauche/droite',
     icon: 'Headphones',
+    defaultOpen: false,
+  },
+  [SettingsSections.HUMAN]: {
+    label: 'Human Layer',
+    description: 'Silhouette et opacite du corps',
+    icon: 'User',
     defaultOpen: false,
   },
 };
@@ -152,6 +159,15 @@ export const SETTINGS_SCHEMA = {
     max: 10,
     step: 0.5,
   },
+  particleOpacity: {
+    type: FieldType.SLIDER,
+    section: SettingsSections.PARTICLES,
+    label: 'Opacite',
+    default: 0.9,
+    min: 0.2,
+    max: 1.0,
+    step: 0.05,
+  },
   particleShape: {
     type: FieldType.SELECT,
     section: SettingsSections.PARTICLES,
@@ -170,6 +186,44 @@ export const SETTINGS_SCHEMA = {
     section: SettingsSections.PARTICLES,
     label: 'Taille reactive',
     default: true,
+  },
+
+  // === HUMAN SECTION ===
+  humanOpacity: {
+    type: FieldType.SLIDER,
+    section: SettingsSections.HUMAN,
+    label: 'Opacite globale human layer',
+    default: 1.0,
+    min: 0.1,
+    max: 1.0,
+    step: 0.05,
+  },
+  bodyOpacity: {
+    type: FieldType.SLIDER,
+    section: SettingsSections.HUMAN,
+    label: 'Opacite du corps',
+    default: 0.9,
+    min: 0.2,
+    max: 1.0,
+    step: 0.05,
+  },
+  humanLineOpacity: {
+    type: FieldType.SLIDER,
+    section: SettingsSections.HUMAN,
+    label: 'Opacite des contours',
+    default: 1.0,
+    min: 0.2,
+    max: 1.0,
+    step: 0.05,
+  },
+  humanFlowOpacity: {
+    type: FieldType.SLIDER,
+    section: SettingsSections.HUMAN,
+    label: 'Opacite musique interne',
+    default: 0.8,
+    min: 0.1,
+    max: 1.0,
+    step: 0.05,
   },
 
   // === DISTRIBUTION SECTION ===
@@ -534,6 +588,7 @@ export const SECTION_ORDER = [
   SettingsSections.AUDIO,
   SettingsSections.DISTRIBUTION,
   SettingsSections.PARTICLES,
+  SettingsSections.HUMAN,
   SettingsSections.ANIMATION,
   SettingsSections.TRAILS,
   SettingsSections.CONNECTIONS,
