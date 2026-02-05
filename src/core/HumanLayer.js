@@ -82,16 +82,37 @@ class HumanLayer {
     this.mainGroup = new THREE.Group();
     this.mainGroup.visible = false;
     
-    // Scale to match scene (model is ~1.8 units, camera at z=300)
-    // Scale factor: make human ~150 units tall to be visible
-    this.mainGroup.scale.setScalar(80);
+    // Target height in world units (matches particle cloud scale)
+    this.targetHeight = 180;
+    this.hasScaled = false;
     
-    // Position at origin, slightly forward so it's in front of particles
-    this.mainGroup.position.set(0, -60, 0); // Center vertically
+    // Position at origin (pose groups are centered during load)
+    this.mainGroup.position.set(0, 0, 0);
+    
+    // Flow field (music traveling through the body)
+    this.flowFields = { open: null, closed: null };
+    this.flowBaseOpacity = { open: 0, closed: 0 };
+    this.flowTime = 0;
+
+    // Body opacity control (keeps white edges visible)
+    this.bodyOpacity = 1.0;
+    this.lineOpacity = 1.0;
+    this.flowOpacity = 1.0;
+    this.humanOpacity = 1.0;
+    this.bodyMinVisible = 0.25;
+    this.bodyOutlineMin = 0.72;
+    this.layerMinVisible = {
+      veins: 0.04,
+      brain: 0.03,
+      heart: 0.05,
+    };
     
     // Crossfade timing
     this.crossfadeStartTime = 0;
     this.isCrossfading = false;
+    
+    // Cache for base opacities (used during crossfade)
+    this.baseOpacity = { open: {}, closed: {} };
   }
   
   /**
@@ -125,6 +146,7 @@ class HumanLayer {
       }
       
       this.mainGroup.visible = true;
+      this.refreshAppearance();
     } else {
       this.mainGroup.visible = false;
     }
@@ -139,6 +161,7 @@ class HumanLayer {
   setPreset(presetId) {
     if (HUMAN_PRESETS[presetId]) {
       this.presetId = presetId;
+      this.refreshAppearance();
     } else {
       this.warnOnce(`preset-${presetId}`, `Unknown preset: ${presetId}`);
     }
@@ -165,6 +188,21 @@ class HumanLayer {
     
     if (!this.modelsLoaded[poseId]) {
       return; // Failed to load
+    }
+
+    // If crossfade is disabled, switch immediately to avoid double limbs
+    if (POSE_CROSSFADE_DURATION <= 0) {
+      if (this.poseGroups[this.currentPose]) {
+        this.poseGroups[this.currentPose].visible = false;
+      }
+      if (this.poseGroups[poseId]) {
+        this.poseGroups[poseId].visible = true;
+      }
+      this.currentPose = poseId;
+      this.targetPose = poseId;
+      this.poseBlend = 1.0;
+      this.isCrossfading = false;
+      return;
     }
     
     // Start crossfade
@@ -224,6 +262,7 @@ class HumanLayer {
       poseGroup.name = `human-pose-${poseId}`;
       
       // Process each required mesh
+      let bodyFound = false;
       for (const meshName of REQUIRED_MESHES) {
         const mesh = this.findMeshByName(gltf.scene, meshName);
         
@@ -231,6 +270,10 @@ class HumanLayer {
           this.warnOnce(`mesh-${poseId}-${meshName}`, `Missing mesh "${meshName}" in ${poseId} pose. Layer disabled.`);
           this.layerAvailable[poseId][meshName.toLowerCase()] = false;
           continue;
+        }
+        
+        if (meshName === 'Body') {
+          bodyFound = true;
         }
         
         // Create EdgesGeometry from mesh
@@ -252,6 +295,14 @@ class HumanLayer {
         // Create LineSegments
         const lineSegments = new THREE.LineSegments(edgesGeometry, material);
         lineSegments.name = `${meshName}-lines`;
+        lineSegments.renderOrder = 3;
+
+        if (meshName === 'Body') {
+          // Keep silhouette readable above particles at all times.
+          material.depthTest = false;
+          material.opacity = 0.9;
+          lineSegments.renderOrder = 20;
+        }
         
         // Copy transform from original mesh
         lineSegments.position.copy(mesh.position);
@@ -261,6 +312,29 @@ class HumanLayer {
         // Store material reference
         this.materials[poseId][meshName.toLowerCase()] = material;
         this.layerAvailable[poseId][meshName.toLowerCase()] = true;
+
+        // Create stencil mask from Body mesh (for internal music only)
+        if (meshName === 'Body') {
+          const maskMaterial = new THREE.MeshBasicMaterial({
+            colorWrite: false,
+            depthWrite: false,
+            depthTest: true,
+            side: THREE.DoubleSide,
+            stencilWrite: true,
+            stencilRef: 1,
+            stencilFunc: THREE.AlwaysStencilFunc,
+            stencilFail: THREE.KeepStencilOp,
+            stencilZFail: THREE.KeepStencilOp,
+            stencilZPass: THREE.ReplaceStencilOp,
+          });
+          const maskMesh = new THREE.Mesh(mesh.geometry, maskMaterial);
+          maskMesh.name = `Body-mask-${poseId}`;
+          maskMesh.position.copy(mesh.position);
+          maskMesh.rotation.copy(mesh.rotation);
+          maskMesh.scale.copy(mesh.scale);
+          maskMesh.renderOrder = 1;
+          poseGroup.add(maskMesh);
+        }
         
         // Store heart group reference for scaling
         if (meshName === 'Heart') {
@@ -274,10 +348,33 @@ class HumanLayer {
         }
       }
       
+      if (!bodyFound) {
+        throw new Error(`Missing required mesh "Body" in ${poseId} pose.`);
+      }
+
       // Store pose group
       this.poseGroups[poseId] = poseGroup;
       poseGroup.visible = poseId === this.currentPose;
       this.mainGroup.add(poseGroup);
+
+      // Center pose group and scale main group once based on first loaded pose
+      const bbox = new THREE.Box3().setFromObject(poseGroup);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      bbox.getSize(size);
+      bbox.getCenter(center);
+
+      // Center the pose around origin (so the body is properly aligned)
+      poseGroup.position.set(-center.x, -center.y, -center.z);
+
+      if (!this.hasScaled && size.y > 0) {
+        const scale = this.targetHeight / size.y;
+        this.mainGroup.scale.setScalar(scale);
+        this.hasScaled = true;
+      }
+
+      // Create flow field inside the body (music traveling through)
+      this.createFlowField(poseId, size);
       
       this.modelsLoaded[poseId] = true;
       this.loadError = null;
@@ -334,6 +431,8 @@ class HumanLayer {
     
     // Compute layer parameters from preset
     const params = preset.compute(this.sb, this.sm, this.sh);
+    const flow = this.computeFlowParams(params, this.sb, this.sm, this.sh);
+    this.flowTime += 0.016 * flow.speed;
     
     // Update veins flow phase
     this.veinsFlowPhase += params.veinsFlowSpeed * 0.016; // ~60fps
@@ -341,6 +440,10 @@ class HumanLayer {
     // Apply parameters to both poses (for crossfade)
     this.applyParams(params, 'open');
     this.applyParams(params, 'closed');
+    
+    // Update flow field for both poses
+    this.updateFlow(flow, 'open', this.flowTime);
+    this.updateFlow(flow, 'closed', this.flowTime);
     
     // Apply crossfade opacities
     this.applyCrossfadeOpacity();
@@ -354,26 +457,58 @@ class HumanLayer {
   applyParams(params, poseId) {
     const materials = this.materials[poseId];
     const available = this.layerAvailable[poseId];
+    const baseOpacity = this.baseOpacity[poseId];
+    const globalOpacity = this.humanOpacity;
+    const lineOpacity = this.lineOpacity;
     
     // Body
     if (available.body && materials.body) {
-      materials.body.opacity = params.bodyOpacity;
+      const outlineFloor = this.bodyOutlineMin * globalOpacity * lineOpacity * (0.35 + 0.65 * this.bodyOpacity);
+      const targetBody = this.clampOpacity(
+        Math.max(
+          Math.max(params.bodyOpacity, this.bodyMinVisible) *
+            this.bodyOpacity *
+            lineOpacity *
+            globalOpacity,
+          outlineFloor
+        )
+      );
+      baseOpacity.body = targetBody;
+      materials.body.opacity = targetBody;
     }
     
     // Veins
     if (available.veins && materials.veins) {
-      materials.veins.opacity = params.veinsOpacity;
+      const veinsOpacity = this.clampOpacity(
+        Math.max(params.veinsOpacity, this.layerMinVisible.veins) *
+          lineOpacity *
+          globalOpacity
+      );
+      baseOpacity.veins = veinsOpacity;
+      materials.veins.opacity = veinsOpacity;
       // Optional: could add flow shader uniform here
     }
     
     // Brain
     if (available.brain && materials.brain) {
-      materials.brain.opacity = params.brainOpacity;
+      const brainOpacity = this.clampOpacity(
+        Math.max(params.brainOpacity, this.layerMinVisible.brain) *
+          lineOpacity *
+          globalOpacity
+      );
+      baseOpacity.brain = brainOpacity;
+      materials.brain.opacity = brainOpacity;
     }
     
     // Heart
     if (available.heart && materials.heart) {
-      materials.heart.opacity = params.heartOpacity;
+      const heartOpacity = this.clampOpacity(
+        Math.max(params.heartOpacity, this.layerMinVisible.heart) *
+          lineOpacity *
+          globalOpacity
+      );
+      baseOpacity.heart = heartOpacity;
+      materials.heart.opacity = heartOpacity;
     }
     
     // Heart scale
@@ -389,7 +524,7 @@ class HumanLayer {
     if (!this.isCrossfading) return;
     
     const elapsed = (performance.now() - this.crossfadeStartTime) / 1000;
-    const t = Math.min(elapsed / POSE_CROSSFADE_DURATION, 1.0);
+    const t = POSE_CROSSFADE_DURATION <= 0 ? 1.0 : Math.min(elapsed / POSE_CROSSFADE_DURATION, 1.0);
     
     // Smooth easing
     this.poseBlend = 1.0 - this.easeInOutCubic(t);
@@ -422,6 +557,10 @@ class HumanLayer {
     
     // Scale all materials in target pose
     this.scalePoseMaterialOpacity(this.targetPose, targetOpacity);
+    
+    // Scale flow field opacity
+    this.scalePoseFlowOpacity(this.currentPose, currentOpacity);
+    this.scalePoseFlowOpacity(this.targetPose, targetOpacity);
   }
   
   /**
@@ -431,21 +570,223 @@ class HumanLayer {
    */
   scalePoseMaterialOpacity(poseId, factor) {
     const materials = this.materials[poseId];
+    const baseOpacity = this.baseOpacity[poseId];
     if (!materials) return;
     
     for (const key of Object.keys(materials)) {
       if (materials[key]) {
-        // Store base opacity if not during crossfade
-        if (!this._baseOpacity) {
-          this._baseOpacity = {};
-        }
-        if (!this._baseOpacity[poseId]) {
-          this._baseOpacity[poseId] = {};
-        }
-        
-        // During crossfade, scale the current opacity
-        materials[key].opacity *= factor;
+        const base = baseOpacity[key] ?? materials[key].opacity;
+        materials[key].opacity = base * factor;
       }
+    }
+  }
+  
+  /**
+   * Compute flow parameters based on audio
+   */
+  computeFlowParams(params, sb, sm, sh) {
+    const intensity = Math.min(1, 0.2 + 0.9 * (0.5 * sb + 0.3 * sm + 0.2 * sh));
+    const speed = 0.4 + 1.6 * (0.6 * sm + 0.4 * sb);
+    const pulse = 0.08 + 0.2 * sh;
+    return {
+      intensity,
+      speed,
+      pulse,
+      veinsBias: Math.min(1, params.veinsOpacity * 1.2),
+    };
+  }
+  
+  /**
+   * Create flow points inside the body volume for a pose
+   */
+  createFlowField(poseId, size) {
+    if (this.flowFields[poseId]) return;
+    
+    const pointCount = 1200;
+    const positions = new Float32Array(pointCount * 3);
+    const basePositions = new Float32Array(pointCount * 3);
+    const phases = new Float32Array(pointCount);
+    
+    const halfX = size.x * 0.5;
+    const halfY = size.y * 0.5;
+    const halfZ = size.z * 0.5;
+    
+    for (let i = 0; i < pointCount; i++) {
+      const i3 = i * 3;
+      const x = (Math.random() * 2 - 1) * halfX * 0.6;
+      const y = (Math.random() * 2 - 1) * halfY * 0.9;
+      const z = (Math.random() * 2 - 1) * halfZ * 0.6;
+      
+      positions[i3] = x;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = z;
+      
+      basePositions[i3] = x;
+      basePositions[i3 + 1] = y;
+      basePositions[i3 + 2] = z;
+      
+      phases[i] = Math.random() * Math.PI * 2;
+    }
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const material = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 1.2,
+      transparent: true,
+      opacity: 0.25,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      stencilWrite: false,
+      stencilTest: true,
+      stencilRef: 1,
+      stencilFunc: THREE.EqualStencilFunc,
+      stencilFail: THREE.KeepStencilOp,
+      stencilZFail: THREE.KeepStencilOp,
+      stencilZPass: THREE.KeepStencilOp,
+    });
+    
+    const points = new THREE.Points(geometry, material);
+    points.name = `flow-points-${poseId}`;
+    points.renderOrder = 2;
+    
+    this.flowFields[poseId] = {
+      points,
+      geometry,
+      material,
+      positions,
+      basePositions,
+      phases,
+      minY: -halfY,
+      maxY: halfY,
+      sizeY: size.y,
+    };
+    
+    // Attach to pose group
+    if (this.poseGroups[poseId]) {
+      this.poseGroups[poseId].add(points);
+    }
+  }
+  
+  /**
+   * Update flow points (music traveling through the body)
+   */
+  updateFlow(flow, poseId, flowTime) {
+    const field = this.flowFields[poseId];
+    if (!field) return;
+    
+    const { positions, basePositions, phases, material, minY, maxY, sizeY } = field;
+    const intensity = flow.intensity;
+    const pulse = flow.pulse;
+    
+    const travel = (flowTime * sizeY) % sizeY;
+    
+    const count = phases.length;
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      
+      const baseX = basePositions[i3];
+      const baseY = basePositions[i3 + 1];
+      const baseZ = basePositions[i3 + 2];
+      
+      let y = baseY + travel;
+      if (y > maxY) y = minY + (y - maxY);
+      
+      const wobble = 1 + intensity * 0.2 + Math.sin(flowTime + phases[i]) * pulse;
+      
+      positions[i3] = baseX * wobble;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = baseZ * wobble;
+    }
+    
+    field.geometry.attributes.position.needsUpdate = true;
+    
+    const reactiveFlowOpacity = (0.18 + 0.62 * intensity) * this.flowOpacity * this.humanOpacity;
+    const minFlowOpacity = 0.08 * this.flowOpacity * this.humanOpacity;
+    const baseOpacity = this.clampOpacity(Math.max(reactiveFlowOpacity, minFlowOpacity));
+    this.flowBaseOpacity[poseId] = baseOpacity;
+    
+    if (!this.isCrossfading) {
+      material.opacity = baseOpacity;
+    }
+  }
+  
+  /**
+   * Scale flow opacity during crossfade
+   */
+  scalePoseFlowOpacity(poseId, factor) {
+    const field = this.flowFields[poseId];
+    if (!field) return;
+    
+    const base = this.flowBaseOpacity[poseId] ?? field.material.opacity;
+    field.material.opacity = base * factor;
+  }
+
+  /**
+   * Set global body opacity multiplier
+   * @param {number} value - 0 to 1
+   */
+  setBodyOpacity(value) {
+    this.bodyOpacity = Math.max(0, Math.min(1, value));
+    this.refreshAppearance();
+  }
+
+  /**
+   * Set global human layer opacity multiplier
+   * @param {number} value - 0 to 1
+   */
+  setHumanOpacity(value) {
+    this.humanOpacity = Math.max(0, Math.min(1, value));
+    this.refreshAppearance();
+  }
+
+  /**
+   * Set global line opacity multiplier
+   * @param {number} value - 0 to 1
+   */
+  setLineOpacity(value) {
+    this.lineOpacity = Math.max(0, Math.min(1, value));
+    this.refreshAppearance();
+  }
+
+  /**
+   * Set flow opacity multiplier
+   * @param {number} value - 0 to 1
+   */
+  setFlowOpacity(value) {
+    this.flowOpacity = Math.max(0, Math.min(1, value));
+    this.refreshAppearance();
+  }
+
+  /**
+   * Clamp opacity for material safety
+   * @param {number} value
+   * @returns {number}
+   */
+  clampOpacity(value) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  /**
+   * Re-apply current preset/opacities immediately (without waiting next frame)
+   */
+  refreshAppearance() {
+    if (!this.enabled) return;
+
+    const preset = getHumanPreset(this.presetId);
+    if (!preset) return;
+
+    const params = preset.compute(this.sb, this.sm, this.sh);
+    this.applyParams(params, 'open');
+    this.applyParams(params, 'closed');
+
+    const flow = this.computeFlowParams(params, this.sb, this.sm, this.sh);
+    this.updateFlow(flow, 'open', this.flowTime);
+    this.updateFlow(flow, 'closed', this.flowTime);
+
+    if (this.isCrossfading) {
+      this.applyCrossfadeOpacity();
     }
   }
   
@@ -503,6 +844,7 @@ class HumanLayer {
     this.heartGroups = { open: null, closed: null };
     this.layerAvailable = { open: {}, closed: {} };
     this.modelsLoaded = { open: false, closed: false };
+    this.flowFields = { open: null, closed: null };
     
     console.log('[HumanLayer] Disposed');
   }
