@@ -441,7 +441,7 @@ function App() {
 
       {/* Keyboard shortcuts hint */}
       {audioUrl && (
-        <div className="fixed bottom-28 right-4 flex flex-col gap-1.5 z-[5]">
+        <div className="fixed bottom-24 sm:bottom-28 right-2 sm:right-4 flex flex-col gap-1.5 z-[5]">
           <div className="flex items-center gap-2 px-2.5 py-1.5 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/60 border border-white/10">
             <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">Space</kbd>
             Play/Pause
@@ -458,7 +458,7 @@ function App() {
       )}
 
       {analysisStatus !== 'idle' && (
-        <div className="fixed bottom-16 right-4 z-[5] px-2.5 py-2 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/70 border border-white/10 min-w-[180px]">
+        <div className="fixed bottom-10 sm:bottom-16 right-2 sm:right-4 z-[5] px-2.5 py-2 bg-black/40 backdrop-blur-xl rounded-lg text-xs text-foreground/70 border border-white/10 min-w-[160px] sm:min-w-[180px]">
           {analysisStatus === 'analyzing' && (
             <div className="space-y-1.5">
               <div>Analyse audio en cours...</div>

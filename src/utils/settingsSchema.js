@@ -145,7 +145,7 @@ export const SETTINGS_SCHEMA = {
     type: FieldType.SLIDER,
     section: SettingsSections.PARTICLES,
     label: 'Nombre de particules',
-    default: 12000,
+    default: 10000,
     min: 1000,
     max: 50000,
     step: 1000,

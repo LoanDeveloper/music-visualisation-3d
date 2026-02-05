@@ -296,12 +296,32 @@ class HumanLayer {
         const lineSegments = new THREE.LineSegments(edgesGeometry, material);
         lineSegments.name = `${meshName}-lines`;
         lineSegments.renderOrder = 3;
+        let bodyOutlineSegments = null;
 
         if (meshName === 'Body') {
           // Keep silhouette readable above particles at all times.
           material.depthTest = false;
           material.opacity = 0.9;
           lineSegments.renderOrder = 20;
+
+          // Reinforced outer silhouette for clean readability.
+          const outlineMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.5,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const outlineGeometry = edgesGeometry.clone();
+          bodyOutlineSegments = new THREE.LineSegments(outlineGeometry, outlineMaterial);
+          bodyOutlineSegments.name = `${meshName}-outline`;
+          bodyOutlineSegments.renderOrder = 19;
+          bodyOutlineSegments.position.copy(mesh.position);
+          bodyOutlineSegments.rotation.copy(mesh.rotation);
+          bodyOutlineSegments.scale.copy(mesh.scale);
+          bodyOutlineSegments.scale.multiplyScalar(1.015);
+          this.materials[poseId].bodyoutline = outlineMaterial;
+          this.layerAvailable[poseId].bodyoutline = true;
         }
         
         // Copy transform from original mesh
@@ -345,6 +365,9 @@ class HumanLayer {
           poseGroup.add(heartGroup);
         } else {
           poseGroup.add(lineSegments);
+          if (bodyOutlineSegments) {
+            poseGroup.add(bodyOutlineSegments);
+          }
         }
       }
       
@@ -475,6 +498,21 @@ class HumanLayer {
       );
       baseOpacity.body = targetBody;
       materials.body.opacity = targetBody;
+
+      if (available.bodyoutline && materials.bodyoutline) {
+        const outlineOpacity = this.clampOpacity(
+          Math.max(
+            targetBody * 0.62,
+            this.bodyOutlineMin *
+              0.55 *
+              globalOpacity *
+              lineOpacity *
+              (0.35 + 0.65 * this.bodyOpacity)
+          )
+        );
+        baseOpacity.bodyoutline = outlineOpacity;
+        materials.bodyoutline.opacity = outlineOpacity;
+      }
     }
     
     // Veins

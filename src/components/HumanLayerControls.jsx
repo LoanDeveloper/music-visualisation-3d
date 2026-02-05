@@ -29,9 +29,15 @@ const HumanLayerControls = ({
   const poses = Object.values(POSES);
 
   // Draggable hook - bottom-left default position
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
     'human-layer-controls',
-    { x: 16, y: typeof window !== 'undefined' ? window.innerHeight - 240 : 500 }
+    { 
+      x: 16,
+      y: typeof window !== 'undefined'
+        ? (isMobile ? window.innerHeight - 280 : window.innerHeight - 240)
+        : 500,
+    }
   );
 
   // Get icon for preset
@@ -51,7 +57,7 @@ const HumanLayerControls = ({
   return (
     <div 
       ref={setRef}
-      className={`w-56 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
+      className={`w-[200px] sm:w-56 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
       style={{ ...containerStyle, zIndex: isDragging ? 1000 : 50 }}
     >
       {/* Drag Handle */}

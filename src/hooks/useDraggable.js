@@ -225,6 +225,24 @@ export function useDraggable(panelId, defaultPosition = { x: 0, y: 0 }, options 
   const setRef = useCallback((element) => {
     elementRef.current = element;
   }, []);
+
+  /**
+   * Ensure panel stays visible on initial mount and on resize (mobile-friendly)
+   */
+  useEffect(() => {
+    if (!elementRef.current) return;
+    
+    const clampToSafe = () => {
+      setPosition((current) => getSafePosition(current.x, current.y));
+    };
+    
+    clampToSafe();
+    
+    window.addEventListener('resize', clampToSafe);
+    return () => {
+      window.removeEventListener('resize', clampToSafe);
+    };
+  }, [getSafePosition]);
   
   /**
    * Props to spread on the drag handle element

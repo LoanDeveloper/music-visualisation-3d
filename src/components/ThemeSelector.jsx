@@ -38,9 +38,10 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
   const paletteNames = getPaletteNames();
 
   // Draggable hook - top-right default position
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
     'theme-selector',
-    { x: typeof window !== 'undefined' ? window.innerWidth - 220 : 1000, y: 16 }
+    { x: typeof window !== 'undefined' ? (isMobile ? 12 : window.innerWidth - 220) : 1000, y: 16 }
   );
 
   return (
@@ -58,7 +59,7 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
       </div>
 
       <Select value={currentTheme} onValueChange={onThemeChange}>
-        <SelectTrigger className="w-44 bg-transparent border-0 text-foreground/90 focus:ring-0 focus:ring-offset-0">
+        <SelectTrigger className="w-40 sm:w-44 bg-transparent border-0 text-foreground/90 focus:ring-0 focus:ring-offset-0">
           <div className="flex items-center gap-2">
             <ColorPreview palette={palettes[currentTheme]} />
             <SelectValue />

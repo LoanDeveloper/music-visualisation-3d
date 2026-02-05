@@ -290,7 +290,9 @@ class ThreeScene {
     if (this.humanLayer) {
       const ok = await this.humanLayer.setEnabled(enabled);
       if (this.particleSystem) {
-        this.particleSystem.setStencilMask(enabled && ok);
+        const active = enabled && ok;
+        this.particleSystem.setStencilMask(active);
+        this.particleSystem.setHumanLayerMode(active);
       }
       return ok;
     }

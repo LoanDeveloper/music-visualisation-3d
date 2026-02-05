@@ -117,7 +117,7 @@ const AudioUploader = ({ onFileSelect, hasAudio, audioName }) => {
   // Full uploader screen when no audio
   return (
     <Card
-      className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] max-w-[90%] p-10 bg-black/50 backdrop-blur-xl rounded-2xl border border-dashed cursor-pointer transition-all z-[100] ${
+      className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] sm:w-[360px] max-w-[90%] p-7 sm:p-10 bg-black/50 backdrop-blur-xl rounded-2xl border border-dashed cursor-pointer transition-all z-[100] ${
         isDragOver 
           ? 'border-white/50 bg-black/60 scale-[1.02]' 
           : 'border-white/20 hover:border-white/40 hover:bg-black/55'

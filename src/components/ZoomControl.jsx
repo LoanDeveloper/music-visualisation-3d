@@ -12,9 +12,17 @@ const ZoomControl = ({ sceneRef }) => {
   const [zoom, setZoom] = useState(0.5);
 
   // Draggable hook - bottom-right default position
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
     'zoom-control',
-    { x: typeof window !== 'undefined' ? window.innerWidth - 200 : 1000, y: typeof window !== 'undefined' ? window.innerHeight - 60 : 700 }
+    { 
+      x: typeof window !== 'undefined'
+        ? (isMobile ? 12 : window.innerWidth - 200)
+        : 1000,
+      y: typeof window !== 'undefined'
+        ? (isMobile ? window.innerHeight - 120 : window.innerHeight - 60)
+        : 700,
+    }
   );
 
   // Sync zoom from scene on mount and periodically
@@ -91,7 +99,7 @@ const ZoomControl = ({ sceneRef }) => {
         max={1}
         step={0.01}
         onValueChange={handleZoomChange}
-        className="w-24"
+        className="w-20 sm:w-24"
       />
 
       <Button

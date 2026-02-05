@@ -15,9 +15,17 @@ const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }
   const [volume, setVolume] = useState(1);
 
   // Draggable hook - bottom-center default position
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const { isDragging, dragHandleProps, containerStyle, setRef } = useDraggable(
     'control-panel',
-    { x: typeof window !== 'undefined' ? (window.innerWidth - 560) / 2 : 200, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 600 }
+    { 
+      x: typeof window !== 'undefined'
+        ? (isMobile ? 12 : (window.innerWidth - 560) / 2)
+        : 200,
+      y: typeof window !== 'undefined'
+        ? (isMobile ? window.innerHeight - 180 : window.innerHeight - 100)
+        : 600,
+    }
   );
 
   useEffect(() => {
@@ -151,7 +159,7 @@ const ControlPanel = ({ audioRef, audioName, canPlay = true, playBlockedReason }
   return (
     <div 
       ref={setRef}
-      className={`w-[560px] max-w-[calc(100%-2rem)] p-4 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
+      className={`w-[92vw] sm:w-[560px] max-w-[calc(100%-2rem)] p-3 sm:p-4 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
       style={{ ...containerStyle, zIndex: isDragging ? 1000 : 10 }}
     >
       {/* Drag Handle */}
