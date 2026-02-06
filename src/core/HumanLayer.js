@@ -12,6 +12,10 @@ import {
   getHumanPreset,
 } from '../utils/humanPresets';
 
+const SILHOUETTE_FADE_WIDTH_PX = 8;
+const SILHOUETTE_FADE_SOFTNESS = 0.35;
+const SILHOUETTE_FADE_OPACITY = 0.74;
+
 /**
  * HumanLayer class
  * Manages 3D human outline visualization with GLB loading,
@@ -88,6 +92,11 @@ class HumanLayer {
     
     // Position at origin (pose groups are centered during load)
     this.mainGroup.position.set(0, 0, 0);
+
+    // Screen-space silhouette fade settings (used to hide edge leaks)
+    this.viewportWidth = 1;
+    this.viewportHeight = 1;
+    this.silhouetteFadeMaterials = [];
     
     // Flow field (music traveling through the body)
     this.flowFields = { open: null, closed: null };
@@ -125,6 +134,119 @@ class HumanLayer {
       console.warn(`[HumanLayer] ${message}`);
       this.warnedOnce.add(key);
     }
+  }
+
+  /**
+   * Update viewport size used by silhouette fade shader uniforms.
+   * @param {number} width
+   * @param {number} height
+   */
+  setViewportSize(width, height) {
+    this.viewportWidth = Math.max(1, Math.floor(width || 1));
+    this.viewportHeight = Math.max(1, Math.floor(height || 1));
+
+    for (let i = 0; i < this.silhouetteFadeMaterials.length; i++) {
+      const material = this.silhouetteFadeMaterials[i];
+      const uniforms = material?.userData?.silhouetteUniforms;
+      if (uniforms?.uViewport?.value) {
+        uniforms.uViewport.value.set(this.viewportWidth, this.viewportHeight);
+      }
+    }
+  }
+
+  /**
+   * Create a silhouette fade material that darkens only outside the stencil body mask.
+   * The vertex offset is in pixels, so the fade thickness stays stable on resize.
+   * @returns {THREE.MeshBasicMaterial}
+   */
+  createBodySilhouetteFadeMaterial() {
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: SILHOUETTE_FADE_OPACITY,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.BackSide,
+      stencilWrite: false,
+      stencilTest: true,
+      stencilRef: 1,
+      stencilFunc: THREE.NotEqualStencilFunc,
+      stencilFail: THREE.KeepStencilOp,
+      stencilZFail: THREE.KeepStencilOp,
+      stencilZPass: THREE.KeepStencilOp,
+    });
+    material.toneMapped = false;
+
+    const uniforms = {
+      uViewport: {
+        value: new THREE.Vector2(this.viewportWidth, this.viewportHeight),
+      },
+      uFadeWidthPx: { value: SILHOUETTE_FADE_WIDTH_PX },
+      uFadeSoftness: { value: SILHOUETTE_FADE_SOFTNESS },
+    };
+    material.userData.silhouetteUniforms = uniforms;
+
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uViewport = uniforms.uViewport;
+      shader.uniforms.uFadeWidthPx = uniforms.uFadeWidthPx;
+      shader.uniforms.uFadeSoftness = uniforms.uFadeSoftness;
+
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          'void main() {',
+          `
+varying float vSilhouetteEdge;
+
+void main() {
+          `
+        )
+        .replace(
+          '#include <project_vertex>',
+          `
+#include <project_vertex>
+vec3 viewNormal = normalize(normalMatrix * normal);
+vec3 viewDir = normalize(-mvPosition.xyz);
+vSilhouetteEdge = 1.0 - abs(dot(viewNormal, viewDir));
+
+vec4 projectedNormal = projectionMatrix * vec4(viewNormal, 0.0);
+vec2 clipNormal = projectedNormal.xy;
+float clipLen = length(clipNormal);
+if (clipLen > 0.00001) {
+  clipNormal /= clipLen;
+} else {
+  clipNormal = vec2(0.0, 0.0);
+}
+
+vec2 safeViewport = max(uViewport, vec2(1.0));
+vec2 ndcOffset = (uFadeWidthPx * 2.0 / safeViewport) * clipNormal;
+gl_Position.xy += ndcOffset * gl_Position.w;
+          `
+        );
+
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          'void main() {',
+          `
+uniform float uFadeSoftness;
+varying float vSilhouetteEdge;
+
+void main() {
+          `
+        )
+        .replace(
+          'vec4 diffuseColor = vec4( diffuse, opacity );',
+          `
+vec4 diffuseColor = vec4( diffuse, opacity );
+float edgeMask = smoothstep(0.0, 1.0, vSilhouetteEdge);
+float fadeMask = smoothstep(uFadeSoftness, 1.0, edgeMask);
+diffuseColor.a *= fadeMask;
+          `
+        );
+    };
+    material.customProgramCacheKey = () => 'human-body-silhouette-fade-v1';
+
+    this.silhouetteFadeMaterials.push(material);
+    return material;
   }
   
   /**
@@ -300,6 +422,7 @@ class HumanLayer {
         lineSegments.name = `${meshName}-lines`;
         lineSegments.renderOrder = meshName === 'Body' ? 22 : 14;
         let bodyOutlineSegments = null;
+        let bodyFadeMesh = null;
 
         if (meshName === 'Body') {
           // Keep silhouette readable above particles at all times.
@@ -325,6 +448,17 @@ class HumanLayer {
           bodyOutlineSegments.scale.multiplyScalar(1.02);
           this.materials[poseId].bodyoutline = outlineMaterial;
           this.layerAvailable[poseId].bodyoutline = true;
+
+          // Screen-space fade ring outside silhouette to hide particle leaks.
+          const bodyFadeMaterial = this.createBodySilhouetteFadeMaterial();
+          bodyFadeMesh = new THREE.Mesh(mesh.geometry, bodyFadeMaterial);
+          bodyFadeMesh.name = `${meshName}-fade`;
+          bodyFadeMesh.renderOrder = 20;
+          bodyFadeMesh.position.copy(mesh.position);
+          bodyFadeMesh.rotation.copy(mesh.rotation);
+          bodyFadeMesh.scale.copy(mesh.scale);
+          this.materials[poseId].bodyfade = bodyFadeMaterial;
+          this.layerAvailable[poseId].bodyfade = true;
         }
         
         // Copy transform from original mesh
@@ -367,6 +501,9 @@ class HumanLayer {
           this.heartGroups[poseId] = heartGroup;
           poseGroup.add(heartGroup);
         } else {
+          if (bodyFadeMesh) {
+            poseGroup.add(bodyFadeMesh);
+          }
           poseGroup.add(lineSegments);
           if (bodyOutlineSegments) {
             poseGroup.add(bodyOutlineSegments);
@@ -515,6 +652,14 @@ class HumanLayer {
         );
         baseOpacity.bodyoutline = outlineOpacity;
         materials.bodyoutline.opacity = outlineOpacity;
+      }
+
+      if (available.bodyfade && materials.bodyfade) {
+        const fadeOpacity = this.clampOpacity(
+          (0.45 + 0.35 * this.bodyOpacity) * globalOpacity * lineOpacity
+        );
+        baseOpacity.bodyfade = fadeOpacity;
+        materials.bodyfade.opacity = fadeOpacity;
       }
     }
     
@@ -886,6 +1031,7 @@ class HumanLayer {
     this.layerAvailable = { open: {}, closed: {} };
     this.modelsLoaded = { open: false, closed: false };
     this.flowFields = { open: null, closed: null };
+    this.silhouetteFadeMaterials = [];
     
     console.log('[HumanLayer] Disposed');
   }

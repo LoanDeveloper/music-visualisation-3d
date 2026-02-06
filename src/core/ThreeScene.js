@@ -40,6 +40,7 @@ class ThreeScene {
       brightness: 1,
       turbulence: 1,
     };
+    this.drawingBufferSize = new THREE.Vector2();
 
     this.initialize();
   }
@@ -83,6 +84,7 @@ class ThreeScene {
 
     // Create human layer (matrix vibe - lazy loaded on enable)
     this.humanLayer = new HumanLayer(this.scene);
+    this.syncHumanLayerViewport();
     this.particleSystem.setHumanPreset(this.humanPresetId);
     this.particleSystem.setHumanParticleTuning(this.humanParticleTuning);
 
@@ -173,6 +175,15 @@ class ThreeScene {
     this.renderer.render(this.scene, this.camera);
   };
 
+  syncHumanLayerViewport() {
+    if (!this.renderer || !this.humanLayer) return;
+    this.renderer.getDrawingBufferSize(this.drawingBufferSize);
+    this.humanLayer.setViewportSize(
+      this.drawingBufferSize.x,
+      this.drawingBufferSize.y
+    );
+  }
+
   /**
    * Start the animation loop
    */
@@ -206,6 +217,7 @@ class ThreeScene {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(width, height);
+    this.syncHumanLayerViewport();
   }
 
   /**
