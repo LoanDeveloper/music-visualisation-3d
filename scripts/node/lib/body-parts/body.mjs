@@ -12,6 +12,10 @@ import {
   transformGeometry,
   composeMatrix,
 } from '../geometry-builder.mjs';
+import {
+  getBodyRigPoseData,
+  buildBodyRigJoints,
+} from '../body-rig.mjs';
 
 // =============================================================================
 // Body Configuration
@@ -44,10 +48,6 @@ const BODY_CONFIG = {
     position: [0, 0.85, 0],
   },
   
-  // Shoulders (connection points)
-  shoulderWidth: 0.32,
-  shoulderY: 0.75,
-  
   // Upper arms
   upperArm: {
     height: 0.28,
@@ -72,10 +72,6 @@ const BODY_CONFIG = {
     rz: 0.3,
     segments: 16,
   },
-  
-  // Hips
-  hipWidth: 0.15,
-  hipY: 0.35,
   
   // Upper legs (thighs)
   upperLeg: {
@@ -124,47 +120,13 @@ const BODY_CONFIG = {
   },
 };
 
-// Pose definitions
-const POSES = {
-  open: {
-    // T-pose: arms horizontal
-    leftArm: {
-      upperRotation: [0, 0, -85],  // Almost horizontal
-      lowerRotation: [0, 0, -5],   // Slight bend
-    },
-    rightArm: {
-      upperRotation: [0, 0, 85],
-      lowerRotation: [0, 0, 5],
-    },
-    leftLeg: {
-      upperRotation: [0, 0, -5],
-      lowerRotation: [0, 0, 0],
-    },
-    rightLeg: {
-      upperRotation: [0, 0, 5],
-      lowerRotation: [0, 0, 0],
-    },
-  },
-  closed: {
-    // Relaxed pose: arms down
-    leftArm: {
-      upperRotation: [0, 0, -15],  // Slight angle
-      lowerRotation: [15, 0, -10], // Slight bend forward
-    },
-    rightArm: {
-      upperRotation: [0, 0, 15],
-      lowerRotation: [15, 0, 10],
-    },
-    leftLeg: {
-      upperRotation: [0, 0, -3],
-      lowerRotation: [0, 0, 0],
-    },
-    rightLeg: {
-      upperRotation: [0, 0, 3],
-      lowerRotation: [0, 0, 0],
-    },
-  },
-};
+function midpoint3(a, b) {
+  return [
+    (a[0] + b[0]) * 0.5,
+    (a[1] + b[1]) * 0.5,
+    (a[2] + b[2]) * 0.5,
+  ];
+}
 
 // =============================================================================
 // Body Creation Functions
@@ -190,7 +152,7 @@ function createTorso() {
 /**
  * Create the chest area (adds volume)
  */
-function createChest() {
+function createChest(joints) {
   const cfg = BODY_CONFIG.chest;
   const geo = createEllipsoid({
     radius: cfg.radius,
@@ -201,14 +163,14 @@ function createChest() {
   });
   
   return transformGeometry(geo, composeMatrix({
-    position: cfg.position,
+    position: joints.chest,
   }));
 }
 
 /**
  * Create the pelvis/hip area
  */
-function createPelvis() {
+function createPelvis(joints) {
   const cfg = BODY_CONFIG.pelvis;
   const geo = createEllipsoid({
     radius: cfg.radius,
@@ -219,14 +181,14 @@ function createPelvis() {
   });
   
   return transformGeometry(geo, composeMatrix({
-    position: cfg.position,
+    position: joints.pelvis,
   }));
 }
 
 /**
  * Create the head
  */
-function createHead() {
+function createHead(joints) {
   const cfg = BODY_CONFIG.head;
   const geo = createSphere({
     radius: cfg.radius,
@@ -235,14 +197,14 @@ function createHead() {
   });
   
   return transformGeometry(geo, composeMatrix({
-    position: cfg.position,
+    position: joints.head,
   }));
 }
 
 /**
  * Create the neck
  */
-function createNeck() {
+function createNeck(joints) {
   const cfg = BODY_CONFIG.neck;
   const geo = createCapsule({
     height: cfg.height,
@@ -251,7 +213,7 @@ function createNeck() {
   });
   
   return transformGeometry(geo, composeMatrix({
-    position: cfg.position,
+    position: joints.neck,
   }));
 }
 
@@ -260,15 +222,14 @@ function createNeck() {
  * @param {string} side - 'left' or 'right'
  * @param {object} poseData - Pose configuration for this arm
  */
-function createArm(side, poseData) {
-  const isLeft = side === 'left';
-  const xSign = isLeft ? -1 : 1;
+function createArm(side, poseData, joints) {
+  const armPose = poseData[`${side}Arm`];
+  const shoulderPos = joints.shoulder[side];
+  const elbowPos = joints.elbow[side];
+  const wristPos = joints.wrist[side];
+  const handPos = joints.hand[side];
   
   const parts = [];
-  
-  // Starting position at shoulder
-  const shoulderX = xSign * BODY_CONFIG.shoulderWidth;
-  const shoulderY = BODY_CONFIG.shoulderY;
   
   // Upper arm
   const upperCfg = BODY_CONFIG.upperArm;
@@ -279,18 +240,11 @@ function createArm(side, poseData) {
     roundSegments: upperCfg.roundSegments,
   });
   
-  // Calculate upper arm end position based on rotation
-  const upperRotation = poseData.upperRotation;
-  const upperAngleRad = upperRotation[2] * Math.PI / 180;
-  const upperEndX = shoulderX + Math.sin(upperAngleRad) * upperCfg.height;
-  const upperEndY = shoulderY - Math.cos(upperAngleRad) * upperCfg.height;
-  
-  // Position upper arm (centered on its length)
-  const upperMidX = shoulderX + Math.sin(upperAngleRad) * (upperCfg.height / 2);
-  const upperMidY = shoulderY - Math.cos(upperAngleRad) * (upperCfg.height / 2);
+  const upperRotation = armPose.upperRotation;
+  const upperMid = midpoint3(shoulderPos, elbowPos);
   
   transformGeometry(upperArm, composeMatrix({
-    position: [upperMidX, upperMidY, 0],
+    position: upperMid,
     rotation: upperRotation,
   }));
   parts.push(upperArm);
@@ -306,20 +260,14 @@ function createArm(side, poseData) {
   
   // Combined rotation for lower arm
   const lowerRotation = [
-    upperRotation[0] + poseData.lowerRotation[0],
-    upperRotation[1] + poseData.lowerRotation[1],
-    upperRotation[2] + poseData.lowerRotation[2],
+    upperRotation[0] + armPose.lowerRotation[0],
+    upperRotation[1] + armPose.lowerRotation[1],
+    upperRotation[2] + armPose.lowerRotation[2],
   ];
-  const lowerAngleRad = lowerRotation[2] * Math.PI / 180;
-  
-  // Position lower arm from upper arm end
-  const lowerMidX = upperEndX + Math.sin(lowerAngleRad) * (lowerCfg.height / 2);
-  const lowerMidY = upperEndY - Math.cos(lowerAngleRad) * (lowerCfg.height / 2);
-  const lowerEndX = upperEndX + Math.sin(lowerAngleRad) * lowerCfg.height;
-  const lowerEndY = upperEndY - Math.cos(lowerAngleRad) * lowerCfg.height;
+  const lowerMid = midpoint3(elbowPos, wristPos);
   
   transformGeometry(lowerArm, composeMatrix({
-    position: [lowerMidX, lowerMidY, 0],
+    position: lowerMid,
     rotation: lowerRotation,
   }));
   parts.push(lowerArm);
@@ -335,7 +283,7 @@ function createArm(side, poseData) {
   });
   
   transformGeometry(hand, composeMatrix({
-    position: [lowerEndX, lowerEndY, 0],
+    position: handPos,
     rotation: lowerRotation,
   }));
   parts.push(hand);
@@ -348,15 +296,14 @@ function createArm(side, poseData) {
  * @param {string} side - 'left' or 'right'
  * @param {object} poseData - Pose configuration for this leg
  */
-function createLeg(side, poseData) {
-  const isLeft = side === 'left';
-  const xSign = isLeft ? -1 : 1;
+function createLeg(side, poseData, joints) {
+  const legPose = poseData[`${side}Leg`];
+  const hipPos = joints.hip[side];
+  const kneePos = joints.knee[side];
+  const anklePos = joints.ankle[side];
+  const footPos = joints.foot[side];
   
   const parts = [];
-  
-  // Starting position at hip
-  const hipX = xSign * BODY_CONFIG.hipWidth;
-  const hipY = BODY_CONFIG.hipY;
   
   // Upper leg
   const upperCfg = BODY_CONFIG.upperLeg;
@@ -367,17 +314,11 @@ function createLeg(side, poseData) {
     roundSegments: upperCfg.roundSegments,
   });
   
-  const upperRotation = poseData.upperRotation;
-  const upperAngleRad = upperRotation[2] * Math.PI / 180;
-  
-  // Position upper leg
-  const upperMidX = hipX + Math.sin(upperAngleRad) * (upperCfg.height / 2);
-  const upperMidY = hipY - Math.cos(Math.abs(upperAngleRad)) * (upperCfg.height / 2) - upperCfg.height / 2;
-  const upperEndX = hipX + Math.sin(upperAngleRad) * upperCfg.height;
-  const upperEndY = hipY - upperCfg.height;
+  const upperRotation = legPose.upperRotation;
+  const upperMid = midpoint3(hipPos, kneePos);
   
   transformGeometry(upperLeg, composeMatrix({
-    position: [upperMidX, upperMidY + upperCfg.height / 2, 0],
+    position: upperMid,
     rotation: upperRotation,
   }));
   parts.push(upperLeg);
@@ -392,17 +333,14 @@ function createLeg(side, poseData) {
   });
   
   const lowerRotation = [
-    upperRotation[0] + poseData.lowerRotation[0],
-    upperRotation[1] + poseData.lowerRotation[1],
-    upperRotation[2] + poseData.lowerRotation[2],
+    upperRotation[0] + legPose.lowerRotation[0],
+    upperRotation[1] + legPose.lowerRotation[1],
+    upperRotation[2] + legPose.lowerRotation[2],
   ];
-  
-  // Position lower leg
-  const lowerMidY = upperEndY - lowerCfg.height / 2;
-  const lowerEndY = upperEndY - lowerCfg.height;
+  const lowerMid = midpoint3(kneePos, anklePos);
   
   transformGeometry(lowerLeg, composeMatrix({
-    position: [upperEndX, lowerMidY, 0],
+    position: lowerMid,
     rotation: lowerRotation,
   }));
   parts.push(lowerLeg);
@@ -418,7 +356,7 @@ function createLeg(side, poseData) {
   });
   
   transformGeometry(foot, composeMatrix({
-    position: [upperEndX, lowerEndY - footCfg.radius * 0.3, footCfg.radius * 0.5],
+    position: footPos,
     rotation: [0, 0, 0],
   }));
   parts.push(foot);
@@ -436,24 +374,27 @@ function createLeg(side, poseData) {
  * @returns {GeometryData}
  */
 export function createBody(pose = 'open') {
-  const poseConfig = POSES[pose] || POSES.open;
+  const poseConfig = getBodyRigPoseData(pose);
+  const joints = buildBodyRigJoints(poseConfig, {
+    footRadius: BODY_CONFIG.foot.radius,
+  });
   
   const parts = [];
   
   // Core body parts
   parts.push(createTorso());
-  parts.push(createChest());
-  parts.push(createPelvis());
-  parts.push(createHead());
-  parts.push(createNeck());
+  parts.push(createChest(joints));
+  parts.push(createPelvis(joints));
+  parts.push(createHead(joints));
+  parts.push(createNeck(joints));
   
   // Arms
-  parts.push(createArm('left', poseConfig.leftArm));
-  parts.push(createArm('right', poseConfig.rightArm));
+  parts.push(createArm('left', poseConfig, joints));
+  parts.push(createArm('right', poseConfig, joints));
   
   // Legs
-  parts.push(createLeg('left', poseConfig.leftLeg));
-  parts.push(createLeg('right', poseConfig.rightLeg));
+  parts.push(createLeg('left', poseConfig, joints));
+  parts.push(createLeg('right', poseConfig, joints));
   
   // Merge all parts
   const body = mergeGeometries(parts);

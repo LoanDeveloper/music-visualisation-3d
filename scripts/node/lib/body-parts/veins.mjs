@@ -8,6 +8,10 @@ import {
   createTubeAlongPath,
   mergeGeometries,
 } from '../geometry-builder.mjs';
+import {
+  getBodyRigPoseData,
+  buildBodyRigJoints,
+} from '../body-rig.mjs';
 
 // =============================================================================
 // Configuration
@@ -55,6 +59,18 @@ function add3(a, b) {
  */
 function scale3(v, s) {
   return [v[0] * s, v[1] * s, v[2] * s];
+}
+
+function sub3(a, b) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+function normalize3(v, fallback = [0, -1, 0]) {
+  const len = Math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2);
+  if (len < 0.000001) {
+    return [fallback[0], fallback[1], fallback[2]];
+  }
+  return [v[0] / len, v[1] / len, v[2] / len];
 }
 
 /**
@@ -188,13 +204,13 @@ function generateBranches(origin, direction, length, depth, spread = 0.4) {
 /**
  * Create the main aorta and heart-connected vessels
  */
-function createAorta() {
+function createAorta(joints) {
   const vessels = [];
   
   // Ascending aorta (from heart upward)
-  const aortaStart = [0, 0.62, 0.04];  // Heart position
-  const aortaArch = [0, 0.78, 0.02];   // Top of arch
-  const aortaDesc = [0, 0.40, 0.02];   // Descending
+  const aortaStart = [0, joints.chest[1] - 0.03, 0.04];
+  const aortaArch = [0, joints.neck[1] - 0.07, 0.02];
+  const aortaDesc = [0, joints.pelvis[1] + 0.02, 0.02];
   
   // Ascending aorta
   const ascending = createCurvedPath(
@@ -238,59 +254,47 @@ function createAorta() {
 /**
  * Create carotid arteries (neck to head)
  */
-function createCarotids() {
+function createCarotids(joints) {
   const vessels = [];
-  
-  // Left carotid
-  const leftPath = createCurvedPath(
-    [-0.03, 0.78, 0.01],
-    [-0.04, 0.95, 0.01],
-    [-0.01, 0.03, 0.01],
-    8
-  );
-  vessels.push({ path: leftPath, radius: RADIUS.major });
-  
-  // Right carotid
-  const rightPath = createCurvedPath(
-    [0.03, 0.78, 0.01],
-    [0.04, 0.95, 0.01],
-    [0.01, 0.03, 0.01],
-    8
-  );
-  vessels.push({ path: rightPath, radius: RADIUS.major });
-  
-  // Add branches into the head
-  const leftHead = generateBranches([-0.04, 0.95, 0.01], [-0.2, 0.5, 0.1], 0.08, 2, 0.5);
-  const rightHead = generateBranches([0.04, 0.95, 0.01], [0.2, 0.5, 0.1], 0.08, 2, 0.5);
-  
-  vessels.push(...leftHead, ...rightHead);
+
+  for (const side of ['left', 'right']) {
+    const xSign = side === 'left' ? -1 : 1;
+    const shoulder = joints.shoulder[side];
+    const start = lerp3(joints.neck, shoulder, 0.20);
+    const end = [joints.head[0] + xSign * 0.04, joints.head[1] - 0.05, 0.01];
+    const control = [xSign * 0.01, 0.03, 0.01];
+
+    vessels.push({
+      path: createCurvedPath(start, end, control, 8),
+      radius: RADIUS.major,
+    });
+
+    const branchDirection = [xSign * 0.2, 0.5, 0.1];
+    vessels.push(...generateBranches(end, branchDirection, 0.08, 2, 0.5));
+  }
   
   return vessels;
 }
 
 /**
  * Create subclavian arteries and arm vessels
- * @param {string} pose - 'open' or 'closed'
+ * @param {object} poseData - Shared pose data from body-rig
+ * @param {object} joints - Shared joints from body-rig
  */
-function createArmVessels(pose = 'open') {
+function createArmVessels(poseData, joints) {
   const vessels = [];
-  
-  const isOpen = pose === 'open';
-  
-  // Arm positions depend on pose
-  // Open pose: arms horizontal (T-pose)
-  // Closed pose: arms down
   
   for (const side of ['left', 'right']) {
     const xSign = side === 'left' ? -1 : 1;
-    
-    // Subclavian origin
-    const subclavianStart = [xSign * 0.05, 0.76, 0.01];
-    
-    // Shoulder position
-    const shoulderPos = [xSign * 0.32, isOpen ? 0.75 : 0.65, 0];
-    
-    // Subclavian to shoulder
+    const armPose = poseData[`${side}Arm`];
+    const shoulderPos = joints.shoulder[side];
+    const elbowPos = joints.elbow[side];
+    const wristPos = joints.wrist[side];
+    const handPos = joints.hand[side];
+
+    const openFactor = Math.min(1, Math.abs(armPose.upperRotation[2]) / 85);
+    const subclavianStart = lerp3(joints.chest, shoulderPos, 0.20);
+
     const subclavian = createCurvedPath(
       subclavianStart,
       shoulderPos,
@@ -298,23 +302,11 @@ function createArmVessels(pose = 'open') {
       10
     );
     vessels.push({ path: subclavian, radius: RADIUS.major });
-    
-    // Brachial (upper arm)
-    let elbowPos, wristPos;
-    if (isOpen) {
-      // T-pose: arms horizontal
-      elbowPos = [xSign * 0.55, 0.73, 0];
-      wristPos = [xSign * 0.78, 0.71, 0];
-    } else {
-      // Closed: arms down with slight bend
-      elbowPos = [xSign * 0.30, 0.48, 0.02];
-      wristPos = [xSign * 0.28, 0.25, 0.03];
-    }
-    
+
     const brachial = createCurvedPath(
       shoulderPos,
       elbowPos,
-      [xSign * 0.02, isOpen ? 0.01 : -0.05, 0.01],
+      [xSign * 0.02, 0.01 - (1 - openFactor) * 0.06, 0.01],
       10
     );
     vessels.push({ path: brachial, radius: RADIUS.medium });
@@ -323,22 +315,24 @@ function createArmVessels(pose = 'open') {
     const radial = createCurvedPath(
       elbowPos,
       wristPos,
-      [xSign * 0.01, isOpen ? -0.01 : -0.03, 0.01],
+      [xSign * 0.01, -0.01 - (1 - openFactor) * 0.02, 0.01],
       10
     );
     vessels.push({ path: radial, radius: RADIUS.small });
     
-    // Hand vessels (branching)
-    let handEnd;
-    if (isOpen) {
-      handEnd = [xSign * 0.85, 0.70, 0];
-    } else {
-      handEnd = [xSign * 0.26, 0.18, 0.04];
-    }
-    
-    const handBranches = generateBranches(
+    const handTrunk = createCurvedPath(
       wristPos,
-      [xSign * 0.5, isOpen ? -0.1 : -0.8, 0.1],
+      handPos,
+      [xSign * 0.008, -0.01, 0.004],
+      6
+    );
+    vessels.push({ path: handTrunk, radius: RADIUS.capillary });
+    
+    // Hand vessels (branching)
+    const handDirection = normalize3(sub3(handPos, wristPos), [xSign * 0.5, -0.1, 0.1]);
+    const handBranches = generateBranches(
+      handPos,
+      handDirection,
       0.06,
       2,
       0.6
@@ -352,16 +346,19 @@ function createArmVessels(pose = 'open') {
 /**
  * Create femoral arteries and leg vessels
  */
-function createLegVessels() {
+function createLegVessels(joints) {
   const vessels = [];
   
   for (const side of ['left', 'right']) {
     const xSign = side === 'left' ? -1 : 1;
-    const xOffset = xSign * 0.08;
+    const hipPos = joints.hip[side];
+    const kneePos = joints.knee[side];
+    const anklePos = joints.ankle[side];
+    const iliacEnd = lerp3(hipPos, kneePos, 0.20);
+    const femoralMid = lerp3(hipPos, kneePos, 0.58);
     
     // Iliac (from aorta split)
-    const iliacStart = [0, 0.28, 0.01];
-    const iliacEnd = [xOffset, 0.22, 0.02];
+    const iliacStart = [0, joints.pelvis[1] - 0.10, 0.01];
     
     const iliac = createCurvedPath(
       iliacStart,
@@ -372,9 +369,6 @@ function createLegVessels() {
     vessels.push({ path: iliac, radius: RADIUS.major });
     
     // Femoral (thigh)
-    const femoralMid = [xSign * 0.12, 0.0, 0.02];
-    const kneePos = [xSign * 0.13, -0.15, 0.01];
-    
     const femoralUpper = createCurvedPath(
       iliacEnd,
       femoralMid,
@@ -391,9 +385,7 @@ function createLegVessels() {
     );
     vessels.push({ path: femoralLower, radius: RADIUS.medium });
     
-    // Popliteal (behind knee)
-    const anklePos = [xSign * 0.13, -0.50, 0.02];
-    
+    // Popliteal / tibial
     const tibial = createCurvedPath(
       kneePos,
       anklePos,
@@ -419,16 +411,18 @@ function createLegVessels() {
 /**
  * Create torso vessels (intercostal, etc.)
  */
-function createTorsoVessels() {
+function createTorsoVessels(joints) {
   const vessels = [];
+  const ribStartY = joints.chest[1] + 0.05;
+  const ribHalfWidth = Math.abs(joints.shoulder.left[0]) * 0.45;
   
   // Intercostal arteries (ribs)
   for (let i = 0; i < 6; i++) {
-    const y = 0.70 - i * 0.05;
+    const y = ribStartY - i * 0.05;
     
     // Left side
     const leftStart = [0, y, 0];
-    const leftEnd = [-0.14, y + 0.01, 0.03];
+    const leftEnd = [-ribHalfWidth, y + 0.01, 0.03];
     vessels.push({
       path: createCurvedPath(leftStart, leftEnd, [0, 0.01, 0.02], 6),
       radius: RADIUS.small,
@@ -436,7 +430,7 @@ function createTorsoVessels() {
     
     // Right side
     const rightStart = [0, y, 0];
-    const rightEnd = [0.14, y + 0.01, 0.03];
+    const rightEnd = [ribHalfWidth, y + 0.01, 0.03];
     vessels.push({
       path: createCurvedPath(rightStart, rightEnd, [0, 0.01, 0.02], 6),
       radius: RADIUS.small,
@@ -456,13 +450,16 @@ function createTorsoVessels() {
  * @returns {GeometryData}
  */
 export function createVeins(pose = 'open') {
+  const poseData = getBodyRigPoseData(pose);
+  const joints = buildBodyRigJoints(poseData);
+
   // Collect all vessel definitions
   const allVessels = [
-    ...createAorta(),
-    ...createCarotids(),
-    ...createArmVessels(pose),
-    ...createLegVessels(),
-    ...createTorsoVessels(),
+    ...createAorta(joints),
+    ...createCarotids(joints),
+    ...createArmVessels(poseData, joints),
+    ...createLegVessels(joints),
+    ...createTorsoVessels(joints),
   ];
   
   // Convert paths to tube geometries
