@@ -26,6 +26,7 @@ export const SMOOTHING_FACTOR = 0.12;
 
 // Default edge threshold angle for EdgesGeometry (in degrees)
 export const EDGE_THRESHOLD_ANGLE = 34;
+export const BODY_EDGE_THRESHOLD_ANGLE = 24;
 
 // Pose crossfade duration (in seconds)
 // Set to 0 to avoid double arms/legs visibility between poses
@@ -123,6 +124,7 @@ export const HUMAN_PRESETS = {
 
 // Default preset
 export const DEFAULT_PRESET = 'reseau-complet';
+export const DEFAULT_LOOK_PRESET = 'studio-clean';
 
 // Default pose
 export const DEFAULT_POSE = 'open';
@@ -143,6 +145,126 @@ export const POSES = {
 
 // Required mesh names in GLB files
 export const REQUIRED_MESHES = ['Body', 'Veins', 'Brain', 'Heart'];
+
+/**
+ * Human look presets (visual style only, independent from music mapping presets).
+ */
+export const HUMAN_LOOK_PRESETS = {
+  'studio-clean': {
+    id: 'studio-clean',
+    name: 'Studio Clean',
+    description: 'Contour net et lisible, rendu equilibre',
+    style: {
+      colors: {
+        body: 0xffffff,
+        bodyoutline: 0xffffff,
+        veins: 0xc7ecff,
+        brain: 0xffd6f3,
+        heart: 0xffb3b3,
+        flow: 0xb8ebff,
+      },
+      baseOpacity: {
+        body: 0.96,
+        bodyoutline: 0.66,
+        bodyfade: 0.62,
+        veins: 0.46,
+        brain: 0.52,
+        heart: 0.60,
+      },
+      minimums: {
+        bodyMinVisible: 0.28,
+        bodyOutlineMin: 0.78,
+        veins: 0.05,
+        brain: 0.04,
+        heart: 0.06,
+      },
+      bodyOutlineScale: 1.02,
+      edgeThreshold: {
+        body: BODY_EDGE_THRESHOLD_ANGLE,
+        inner: EDGE_THRESHOLD_ANGLE,
+      },
+      flow: {
+        pointSize: 1.2,
+      },
+    },
+  },
+  'xray-soft': {
+    id: 'xray-soft',
+    name: 'XRay Soft',
+    description: 'Corps doux, veines et organes plus presents',
+    style: {
+      colors: {
+        body: 0xf8fcff,
+        bodyoutline: 0xffffff,
+        veins: 0x9adfff,
+        brain: 0xeec4ff,
+        heart: 0xff9aa6,
+        flow: 0x9fe8ff,
+      },
+      baseOpacity: {
+        body: 0.90,
+        bodyoutline: 0.58,
+        bodyfade: 0.56,
+        veins: 0.52,
+        brain: 0.56,
+        heart: 0.66,
+      },
+      minimums: {
+        bodyMinVisible: 0.24,
+        bodyOutlineMin: 0.72,
+        veins: 0.06,
+        brain: 0.06,
+        heart: 0.07,
+      },
+      bodyOutlineScale: 1.024,
+      edgeThreshold: {
+        body: 22,
+        inner: 32,
+      },
+      flow: {
+        pointSize: 1.35,
+      },
+    },
+  },
+  'ink-glow': {
+    id: 'ink-glow',
+    name: 'Ink Glow',
+    description: 'Silhouette forte avec glow interne',
+    style: {
+      colors: {
+        body: 0xffffff,
+        bodyoutline: 0xf0f8ff,
+        veins: 0xa8ddff,
+        brain: 0xffddff,
+        heart: 0xff8d8d,
+        flow: 0x9ce6ff,
+      },
+      baseOpacity: {
+        body: 0.98,
+        bodyoutline: 0.70,
+        bodyfade: 0.66,
+        veins: 0.44,
+        brain: 0.48,
+        heart: 0.64,
+      },
+      minimums: {
+        bodyMinVisible: 0.30,
+        bodyOutlineMin: 0.82,
+        veins: 0.04,
+        brain: 0.04,
+        heart: 0.06,
+      },
+      bodyOutlineScale: 1.018,
+      edgeThreshold: {
+        body: 26,
+        inner: 36,
+      },
+      flow: {
+        pointSize: 1.1,
+      },
+    },
+  },
+};
 
 /**
  * Get preset by ID
@@ -167,6 +289,27 @@ export function getHumanPresetIds() {
  */
 export function getHumanPresetsForUI() {
   return Object.values(HUMAN_PRESETS).map(({ id, name, description }) => ({
+    id,
+    name,
+    description,
+  }));
+}
+
+/**
+ * Get look preset by ID
+ * @param {string} lookPresetId
+ * @returns {object|null}
+ */
+export function getHumanLookPreset(lookPresetId) {
+  return HUMAN_LOOK_PRESETS[lookPresetId] || null;
+}
+
+/**
+ * Get look presets for UI
+ * @returns {Array<{id: string, name: string, description: string}>}
+ */
+export function getHumanLookPresetsForUI() {
+  return Object.values(HUMAN_LOOK_PRESETS).map(({ id, name, description }) => ({
     id,
     name,
     description,

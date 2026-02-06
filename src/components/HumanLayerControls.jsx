@@ -9,7 +9,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { User, Brain, Heart, Activity, AlertTriangle, GripVertical } from 'lucide-react';
-import { getHumanPresetsForUI, POSES } from '@/utils/humanPresets';
+import {
+  getHumanPresetsForUI,
+  getHumanLookPresetsForUI,
+  POSES,
+} from '@/utils/humanPresets';
 import { useDraggable } from '@/hooks/useDraggable';
 
 /**
@@ -21,6 +25,8 @@ const HumanLayerControls = ({
   onEnabledChange,
   preset,
   onPresetChange,
+  lookPreset,
+  onLookPresetChange,
   pose,
   onPoseChange,
   isLoading,
@@ -29,6 +35,7 @@ const HumanLayerControls = ({
   onParticleTuningChange,
 }) => {
   const presets = getHumanPresetsForUI();
+  const lookPresets = getHumanLookPresetsForUI();
   const poses = Object.values(POSES);
 
   // Draggable hook - bottom-left default position
@@ -125,6 +132,27 @@ const HumanLayerControls = ({
             </Select>
           </div>
 
+          <div className="space-y-1.5">
+            <Label className="text-[10px] text-foreground/60 uppercase tracking-wider">
+              Look
+            </Label>
+            <Select value={lookPreset} onValueChange={onLookPresetChange}>
+              <SelectTrigger className="w-full bg-white/5 border-white/10 text-foreground/90 h-8 text-xs">
+                <SelectValue placeholder="Choisir look" />
+              </SelectTrigger>
+              <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10">
+                {lookPresets.map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <User className="h-3 w-3" />
+                      <span>{p.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Pose selector */}
           <div className="space-y-1.5">
             <Label className="text-[10px] text-foreground/60 uppercase tracking-wider">
@@ -147,6 +175,9 @@ const HumanLayerControls = ({
           {/* Preset description */}
           <div className="text-[10px] text-foreground/40 italic">
             {presets.find((p) => p.id === preset)?.description || ''}
+          </div>
+          <div className="text-[10px] text-foreground/40 italic -mt-2">
+            {lookPresets.find((p) => p.id === lookPreset)?.description || ''}
           </div>
 
           {particleTuning && (

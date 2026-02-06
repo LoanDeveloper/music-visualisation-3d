@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   HUMAN_PRESETS,
   DEFAULT_PRESET,
+  DEFAULT_LOOK_PRESET,
   DEFAULT_POSE,
   POSES,
   REQUIRED_MESHES,
@@ -10,6 +11,7 @@ import {
   EDGE_THRESHOLD_ANGLE,
   POSE_CROSSFADE_DURATION,
   getHumanPreset,
+  getHumanLookPreset,
 } from '../utils/humanPresets';
 
 const SILHOUETTE_FADE_WIDTH_PX = 8;
@@ -30,6 +32,7 @@ class HumanLayer {
     // State
     this.enabled = false;
     this.presetId = DEFAULT_PRESET;
+    this.lookPresetId = DEFAULT_LOOK_PRESET;
     this.currentPose = DEFAULT_POSE;
     this.targetPose = DEFAULT_POSE;
     this.poseBlend = 1.0; // 1.0 = fully on currentPose
@@ -122,6 +125,19 @@ class HumanLayer {
     
     // Cache for base opacities (used during crossfade)
     this.baseOpacity = { open: {}, closed: {} };
+
+    // Look preset style cache
+    this.lookPreset = getHumanLookPreset(this.lookPresetId);
+
+    // Reused transform helpers (outside RAF)
+    this._tmpPosition = new THREE.Vector3();
+    this._tmpQuaternion = new THREE.Quaternion();
+    this._tmpScale = new THREE.Vector3();
+    this._tmpBox = new THREE.Box3();
+    this._tmpBoxSize = new THREE.Vector3();
+    this._tmpBoxCenter = new THREE.Vector3();
+
+    this.applyLookMinimums();
   }
   
   /**
@@ -134,6 +150,93 @@ class HumanLayer {
       console.warn(`[HumanLayer] ${message}`);
       this.warnedOnce.add(key);
     }
+  }
+
+  getLookStyle() {
+    return this.lookPreset?.style || null;
+  }
+
+  getLookColor(layerKey, fallback) {
+    const style = this.getLookStyle();
+    return style?.colors?.[layerKey] ?? fallback;
+  }
+
+  getLookBaseOpacity(layerKey, fallback) {
+    const style = this.getLookStyle();
+    return style?.baseOpacity?.[layerKey] ?? fallback;
+  }
+
+  getLookBodyOutlineScale() {
+    const style = this.getLookStyle();
+    return style?.bodyOutlineScale ?? 1.02;
+  }
+
+  getLookEdgeThreshold(meshName) {
+    const style = this.getLookStyle();
+    if (meshName === 'Body') {
+      return style?.edgeThreshold?.body ?? EDGE_THRESHOLD_ANGLE;
+    }
+    return style?.edgeThreshold?.inner ?? EDGE_THRESHOLD_ANGLE;
+  }
+
+  getLookFlowPointSize() {
+    const style = this.getLookStyle();
+    return style?.flow?.pointSize ?? 1.2;
+  }
+
+  applyLookMinimums() {
+    const minimums = this.getLookStyle()?.minimums || {};
+    this.bodyMinVisible = minimums.bodyMinVisible ?? 0.25;
+    this.bodyOutlineMin = minimums.bodyOutlineMin ?? 0.72;
+    this.layerMinVisible.veins = minimums.veins ?? 0.04;
+    this.layerMinVisible.brain = minimums.brain ?? 0.03;
+    this.layerMinVisible.heart = minimums.heart ?? 0.05;
+  }
+
+  applyLookToPose(poseId) {
+    const materials = this.materials[poseId];
+    if (materials?.body?.color) {
+      materials.body.color.setHex(this.getLookColor('body', 0xffffff));
+    }
+    if (materials?.bodyoutline?.color) {
+      materials.bodyoutline.color.setHex(this.getLookColor('bodyoutline', 0xffffff));
+    }
+    if (materials?.veins?.color) {
+      materials.veins.color.setHex(this.getLookColor('veins', 0xffffff));
+    }
+    if (materials?.brain?.color) {
+      materials.brain.color.setHex(this.getLookColor('brain', 0xffffff));
+    }
+    if (materials?.heart?.color) {
+      materials.heart.color.setHex(this.getLookColor('heart', 0xffffff));
+    }
+
+    const flowField = this.flowFields[poseId];
+    if (flowField?.material) {
+      flowField.material.color.setHex(this.getLookColor('flow', 0xffffff));
+      flowField.material.size = this.getLookFlowPointSize();
+    }
+  }
+
+  applyMeshWorldTransform(sourceMesh, targetObject) {
+    sourceMesh.updateWorldMatrix(true, false);
+    sourceMesh.matrixWorld.decompose(
+      this._tmpPosition,
+      this._tmpQuaternion,
+      this._tmpScale
+    );
+    targetObject.position.copy(this._tmpPosition);
+    targetObject.quaternion.copy(this._tmpQuaternion);
+    targetObject.scale.copy(this._tmpScale);
+  }
+
+  computeMeshWorldBounds(mesh, targetBox) {
+    if (!mesh.geometry.boundingBox) {
+      mesh.geometry.computeBoundingBox();
+    }
+    targetBox.copy(mesh.geometry.boundingBox);
+    targetBox.applyMatrix4(mesh.matrixWorld);
+    return targetBox;
   }
 
   /**
@@ -288,6 +391,25 @@ diffuseColor.a *= fadeMask;
       this.warnOnce(`preset-${presetId}`, `Unknown preset: ${presetId}`);
     }
   }
+
+  /**
+   * Set static visual style preset (independent from music-reactive preset)
+   * @param {string} lookPresetId
+   */
+  setLookPreset(lookPresetId) {
+    const next = getHumanLookPreset(lookPresetId);
+    if (!next) {
+      this.warnOnce(`look-${lookPresetId}`, `Unknown look preset: ${lookPresetId}`);
+      return;
+    }
+
+    this.lookPresetId = lookPresetId;
+    this.lookPreset = next;
+    this.applyLookMinimums();
+    this.applyLookToPose('open');
+    this.applyLookToPose('closed');
+    this.refreshAppearance();
+  }
   
   /**
    * Set the current pose with crossfade
@@ -378,10 +500,14 @@ diffuseColor.a *= fadeMask;
           reject
         );
       });
+
+      gltf.scene.updateMatrixWorld(true);
       
       // Create pose group
       const poseGroup = new THREE.Group();
       poseGroup.name = `human-pose-${poseId}`;
+      const bodyOutlineScale = this.getLookBodyOutlineScale();
+      let bodyWorldBounds = null;
       
       // Process each required mesh
       let bodyFound = false;
@@ -397,20 +523,23 @@ diffuseColor.a *= fadeMask;
         if (meshName === 'Body') {
           bodyFound = true;
         }
-        
-        const baseOpacity = meshName === 'Body'
+
+        const layerKey = meshName.toLowerCase();
+        const fallbackOpacity = meshName === 'Body'
           ? 0.95
           : (meshName === 'Heart' ? 0.58 : (meshName === 'Brain' ? 0.46 : 0.40));
+        const baseOpacity = this.getLookBaseOpacity(layerKey, fallbackOpacity);
+        const edgeThreshold = this.getLookEdgeThreshold(meshName);
 
         // Create EdgesGeometry from mesh
         const edgesGeometry = new THREE.EdgesGeometry(
           mesh.geometry,
-          EDGE_THRESHOLD_ANGLE
+          edgeThreshold
         );
         
         // Keep body contour dominant and inner layers softer for readability.
         const material = new THREE.LineBasicMaterial({
-          color: 0xffffff,
+          color: this.getLookColor(layerKey, 0xffffff),
           transparent: true,
           opacity: baseOpacity,
           depthTest: meshName !== 'Body',
@@ -427,14 +556,14 @@ diffuseColor.a *= fadeMask;
         if (meshName === 'Body') {
           // Keep silhouette readable above particles at all times.
           material.depthTest = false;
-          material.opacity = 0.95;
+          material.opacity = baseOpacity;
           lineSegments.renderOrder = 22;
 
           // Reinforced outer silhouette for clean readability.
           const outlineMaterial = new THREE.LineBasicMaterial({
-            color: 0xffffff,
+            color: this.getLookColor('bodyoutline', 0xffffff),
             transparent: true,
-            opacity: 0.62,
+            opacity: this.getLookBaseOpacity('bodyoutline', 0.62),
             depthTest: false,
             depthWrite: false,
           });
@@ -442,33 +571,30 @@ diffuseColor.a *= fadeMask;
           bodyOutlineSegments = new THREE.LineSegments(outlineGeometry, outlineMaterial);
           bodyOutlineSegments.name = `${meshName}-outline`;
           bodyOutlineSegments.renderOrder = 21;
-          bodyOutlineSegments.position.copy(mesh.position);
-          bodyOutlineSegments.rotation.copy(mesh.rotation);
-          bodyOutlineSegments.scale.copy(mesh.scale);
-          bodyOutlineSegments.scale.multiplyScalar(1.02);
+          this.applyMeshWorldTransform(mesh, bodyOutlineSegments);
+          bodyOutlineSegments.scale.multiplyScalar(bodyOutlineScale);
           this.materials[poseId].bodyoutline = outlineMaterial;
           this.layerAvailable[poseId].bodyoutline = true;
 
           // Screen-space fade ring outside silhouette to hide particle leaks.
           const bodyFadeMaterial = this.createBodySilhouetteFadeMaterial();
+          bodyFadeMaterial.opacity = this.getLookBaseOpacity('bodyfade', SILHOUETTE_FADE_OPACITY);
           bodyFadeMesh = new THREE.Mesh(mesh.geometry, bodyFadeMaterial);
           bodyFadeMesh.name = `${meshName}-fade`;
           bodyFadeMesh.renderOrder = 20;
-          bodyFadeMesh.position.copy(mesh.position);
-          bodyFadeMesh.rotation.copy(mesh.rotation);
-          bodyFadeMesh.scale.copy(mesh.scale);
+          this.applyMeshWorldTransform(mesh, bodyFadeMesh);
           this.materials[poseId].bodyfade = bodyFadeMaterial;
           this.layerAvailable[poseId].bodyfade = true;
+
+          bodyWorldBounds = this.computeMeshWorldBounds(mesh, this._tmpBox).clone();
         }
         
-        // Copy transform from original mesh
-        lineSegments.position.copy(mesh.position);
-        lineSegments.rotation.copy(mesh.rotation);
-        lineSegments.scale.copy(mesh.scale);
+        // Copy world transform from source mesh hierarchy
+        this.applyMeshWorldTransform(mesh, lineSegments);
         
         // Store material reference
-        this.materials[poseId][meshName.toLowerCase()] = material;
-        this.layerAvailable[poseId][meshName.toLowerCase()] = true;
+        this.materials[poseId][layerKey] = material;
+        this.layerAvailable[poseId][layerKey] = true;
 
         // Create stencil mask from Body mesh (for internal music only)
         if (meshName === 'Body') {
@@ -486,9 +612,7 @@ diffuseColor.a *= fadeMask;
           });
           const maskMesh = new THREE.Mesh(mesh.geometry, maskMaterial);
           maskMesh.name = `Body-mask-${poseId}`;
-          maskMesh.position.copy(mesh.position);
-          maskMesh.rotation.copy(mesh.rotation);
-          maskMesh.scale.copy(mesh.scale);
+          this.applyMeshWorldTransform(mesh, maskMesh);
           maskMesh.renderOrder = 1;
           poseGroup.add(maskMesh);
         }
@@ -497,6 +621,12 @@ diffuseColor.a *= fadeMask;
         if (meshName === 'Heart') {
           // Wrap in a group for easy scaling
           const heartGroup = new THREE.Group();
+          heartGroup.position.copy(lineSegments.position);
+          heartGroup.quaternion.copy(lineSegments.quaternion);
+          heartGroup.scale.copy(lineSegments.scale);
+          lineSegments.position.set(0, 0, 0);
+          lineSegments.quaternion.set(0, 0, 0, 1);
+          lineSegments.scale.set(1, 1, 1);
           heartGroup.add(lineSegments);
           this.heartGroups[poseId] = heartGroup;
           poseGroup.add(heartGroup);
@@ -520,24 +650,28 @@ diffuseColor.a *= fadeMask;
       poseGroup.visible = poseId === this.currentPose;
       this.mainGroup.add(poseGroup);
 
-      // Center pose group and scale main group once based on first loaded pose
-      const bbox = new THREE.Box3().setFromObject(poseGroup);
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      bbox.getSize(size);
-      bbox.getCenter(center);
+      // Center from body bounds to keep head/arms readable and layer-aligned.
+      if (bodyWorldBounds) {
+        bodyWorldBounds.getSize(this._tmpBoxSize);
+        bodyWorldBounds.getCenter(this._tmpBoxCenter);
+      } else {
+        this._tmpBox.setFromObject(poseGroup);
+        this._tmpBox.getSize(this._tmpBoxSize);
+        this._tmpBox.getCenter(this._tmpBoxCenter);
+      }
 
       // Center the pose around origin (so the body is properly aligned)
-      poseGroup.position.set(-center.x, -center.y, -center.z);
+      poseGroup.position.set(-this._tmpBoxCenter.x, -this._tmpBoxCenter.y, -this._tmpBoxCenter.z);
 
-      if (!this.hasScaled && size.y > 0) {
-        const scale = this.targetHeight / size.y;
+      if (!this.hasScaled && this._tmpBoxSize.y > 0) {
+        const scale = this.targetHeight / this._tmpBoxSize.y;
         this.mainGroup.scale.setScalar(scale);
         this.hasScaled = true;
       }
 
       // Create flow field inside the body (music traveling through)
-      this.createFlowField(poseId, size);
+      this.createFlowField(poseId, this._tmpBoxSize);
+      this.applyLookToPose(poseId);
       
       this.modelsLoaded[poseId] = true;
       this.loadError = null;
@@ -655,8 +789,9 @@ diffuseColor.a *= fadeMask;
       }
 
       if (available.bodyfade && materials.bodyfade) {
+        const lookFadeBase = this.getLookBaseOpacity('bodyfade', SILHOUETTE_FADE_OPACITY);
         const fadeOpacity = this.clampOpacity(
-          (0.45 + 0.35 * this.bodyOpacity) * globalOpacity * lineOpacity
+          lookFadeBase * (0.65 + 0.35 * this.bodyOpacity) * globalOpacity * lineOpacity
         );
         baseOpacity.bodyfade = fadeOpacity;
         materials.bodyfade.opacity = fadeOpacity;
@@ -818,8 +953,8 @@ diffuseColor.a *= fadeMask;
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     
     const material = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 1.2,
+      color: this.getLookColor('flow', 0xffffff),
+      size: this.getLookFlowPointSize(),
       transparent: true,
       opacity: 0.25,
       blending: THREE.AdditiveBlending,
@@ -993,6 +1128,7 @@ diffuseColor.a *= fadeMask;
     return {
       enabled: this.enabled,
       presetId: this.presetId,
+      lookPresetId: this.lookPresetId,
       pose: this.currentPose,
       isLoading: this.isLoading,
       hasError: !!this.loadError,

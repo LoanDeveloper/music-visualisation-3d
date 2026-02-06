@@ -7,6 +7,10 @@ This directory contains the GLB model files for the Human Layer visualization.
 - `pose-open.glb` - Human figure with arms open/spread (T-pose)
 - `pose-closed.glb` - Human figure with arms closer to body (relaxed)
 
+Generated staging files are written to:
+- `public/models/human/_staging/pose-open.glb`
+- `public/models/human/_staging/pose-closed.glb`
+
 ## Required Mesh Names
 
 Each GLB file must contain meshes with these exact names:
@@ -17,40 +21,33 @@ Each GLB file must contain meshes with these exact names:
 
 ---
 
-## Quick Start: Generate Models from Z-Anatomy
+## Quick Start: Safe Procedural Pipeline
 
 ### Prerequisites
-- Blender 3.0+ installed (https://www.blender.org/download/)
-- Z-Anatomy .blend file (https://www.z-anatomy.com/download)
+- Project dependencies installed (`npm install`)
 
-### Step 1: Download Z-Anatomy
-
-1. Go to https://www.z-anatomy.com/download
-2. Download the **Blender version** (`.blend` file)
-3. Save it somewhere accessible (e.g., `~/Downloads/z_anatomy.blend`)
-
-### Step 2: Run the Extraction Script
+### Step 1: Generate staged models
 
 ```bash
-# From the project root directory
-blender ~/Downloads/z_anatomy.blend --background \
-  --python scripts/blender/extract_anatomy.py \
-  -- --output public/models/human
+npm run generate-models
 ```
 
-This will:
-- Extract Body, Veins, Brain, and Heart meshes
-- Apply decimation to optimize polygon count
-- Create two poses (open and closed)
-- Export as GLB files
+This writes GLBs to `_staging` and runs strict validation checks
+(mesh checks + pose/symmetry/proportion checks).
 
-### Step 3: Validate the Models
+### Step 2: Validate staging (optional explicit rerun)
 
 ```bash
-npm run validate-models
-# or for verbose output:
-npm run validate-models:verbose
+npm run validate-models:staging
 ```
+
+### Step 3: Promote staged -> live (only after validation passes)
+
+```bash
+npm run promote-models
+```
+
+Live files in `/public/models/human/` are never overwritten by default.
 
 ### Step 4: Test in the Visualizer
 
@@ -113,7 +110,7 @@ If the automatic extraction doesn't work for your Z-Anatomy version:
 
 ## Validation
 
-Run the validator to check your models:
+Run the validator to check live models:
 
 ```bash
 npm run validate-models
@@ -124,6 +121,7 @@ The validator checks:
 - All 4 required meshes are present (Body, Veins, Brain, Heart)
 - File size is reasonable (<5MB each)
 - Triangle count is within limits
+- Pose rig constraints (when rig metadata is present)
 
 ---
 

@@ -3,7 +3,7 @@ import ParticleSystem from './ParticleSystem';
 import CameraController from './CameraController';
 import HumanLayer from './HumanLayer';
 import { getPalette } from '../utils/colorPalettes';
-import { DEFAULT_PRESET } from '../utils/humanPresets';
+import { DEFAULT_PRESET, DEFAULT_LOOK_PRESET } from '../utils/humanPresets';
 
 /**
  * ThreeScene class
@@ -32,6 +32,7 @@ class ThreeScene {
     // Audio data
     this.currentFrequencyBands = { bass: 0, mid: 0, high: 0 };
     this.humanPresetId = DEFAULT_PRESET;
+    this.humanLookPresetId = DEFAULT_LOOK_PRESET;
     this.humanParticleTuning = {
       density: 1,
       speed: 1,
@@ -84,6 +85,7 @@ class ThreeScene {
 
     // Create human layer (matrix vibe - lazy loaded on enable)
     this.humanLayer = new HumanLayer(this.scene);
+    this.humanLayer.setLookPreset(this.humanLookPresetId);
     this.syncHumanLayerViewport();
     this.particleSystem.setHumanPreset(this.humanPresetId);
     this.particleSystem.setHumanParticleTuning(this.humanParticleTuning);
@@ -331,6 +333,7 @@ class ThreeScene {
         if (active) {
           this.particleSystem.setHumanPreset(this.humanPresetId);
           this.particleSystem.setHumanParticleTuning(this.humanParticleTuning);
+          this.humanLayer.setLookPreset(this.humanLookPresetId);
         }
       }
       return ok;
@@ -349,6 +352,13 @@ class ThreeScene {
     }
     if (this.particleSystem) {
       this.particleSystem.setHumanPreset(this.humanPresetId);
+    }
+  }
+
+  setHumanLookPreset(lookPresetId) {
+    this.humanLookPresetId = lookPresetId || DEFAULT_LOOK_PRESET;
+    if (this.humanLayer) {
+      this.humanLayer.setLookPreset(this.humanLookPresetId);
     }
   }
 

@@ -9,7 +9,11 @@ import SettingsPanel from '@/components/SettingsPanel';
 import HumanLayerControls from '@/components/HumanLayerControls';
 import useAudioAnalysis from '@/hooks/useAudioAnalysis';
 import platform from '@/utils/platform';
-import { DEFAULT_PRESET, DEFAULT_POSE } from '@/utils/humanPresets';
+import {
+  DEFAULT_PRESET,
+  DEFAULT_LOOK_PRESET,
+  DEFAULT_POSE,
+} from '@/utils/humanPresets';
 import { getDefaultSettings } from '@/utils/settingsSchema';
 import './App.css';
 
@@ -37,6 +41,7 @@ function App() {
   // Human layer state
   const [humanLayerEnabled, setHumanLayerEnabled] = useState(false);
   const [humanPreset, setHumanPreset] = useState(DEFAULT_PRESET);
+  const [humanLookPreset, setHumanLookPreset] = useState(DEFAULT_LOOK_PRESET);
   const [humanPose, setHumanPose] = useState(DEFAULT_POSE);
   const [humanLayerLoading, setHumanLayerLoading] = useState(false);
   const [humanLayerError, setHumanLayerError] = useState(false);
@@ -77,6 +82,7 @@ function App() {
         setHumanLayerError(false);
         if (enabled && sceneRef.current) {
           sceneRef.current.setHumanPreset(humanPreset);
+          sceneRef.current.setHumanLookPreset(humanLookPreset);
           sceneRef.current.setHumanParticleTuning(humanParticleTuning);
         }
       } else {
@@ -90,10 +96,14 @@ function App() {
     } finally {
       setHumanLayerLoading(false);
     }
-  }, [humanParticleTuning, humanPreset]);
+  }, [humanLookPreset, humanParticleTuning, humanPreset]);
 
   const handleHumanPresetChange = useCallback((presetId) => {
     setHumanPreset(presetId);
+  }, []);
+
+  const handleHumanLookPresetChange = useCallback((lookPresetId) => {
+    setHumanLookPreset(lookPresetId);
   }, []);
 
   const handleHumanParticleTuningChange = useCallback((nextTuning) => {
@@ -117,14 +127,16 @@ function App() {
   useEffect(() => {
     if (!sceneRef.current) return;
     sceneRef.current.setHumanPreset(humanPreset);
+    sceneRef.current.setHumanLookPreset(humanLookPreset);
     sceneRef.current.setHumanParticleTuning(humanParticleTuning);
-  }, [humanPreset, humanParticleTuning]);
+  }, [humanLookPreset, humanPreset, humanParticleTuning]);
 
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === 'undefined') return undefined;
 
     window.__musicVizDebug = {
       setHumanPreset: (presetId) => sceneRef.current?.setHumanPreset(presetId),
+      setHumanLookPreset: (lookPresetId) => sceneRef.current?.setHumanLookPreset(lookPresetId),
       setHumanLayerEnabled: (enabled) => sceneRef.current?.setHumanLayerEnabled(enabled),
       setHumanParticleTuning: (tuning) => sceneRef.current?.setHumanParticleTuning(tuning),
       getScene: () => sceneRef.current,
@@ -456,6 +468,8 @@ function App() {
           onEnabledChange={handleHumanLayerEnabledChange}
           preset={humanPreset}
           onPresetChange={handleHumanPresetChange}
+          lookPreset={humanLookPreset}
+          onLookPresetChange={handleHumanLookPresetChange}
           pose={humanPose}
           onPoseChange={handleHumanPoseChange}
           isLoading={humanLayerLoading}
@@ -490,6 +504,7 @@ function App() {
       {humanLayerEnabled && (
         <div className="fixed top-14 right-2 sm:right-4 z-[6] px-2.5 py-1.5 rounded-lg border border-white/10 bg-black/45 backdrop-blur-xl text-[10px] text-foreground/75 min-w-[170px]">
           <div className="font-medium text-foreground/85 mb-1">Preset: {humanPreset}</div>
+          <div className="mb-1">Look: {humanLookPreset}</div>
           <div>
             B {Math.round(liveBands.bass * 100)}% / M {Math.round(liveBands.mid * 100)}% / H {Math.round(liveBands.high * 100)}%
           </div>

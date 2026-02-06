@@ -15,9 +15,12 @@
     "prod:all": "npm run server",
     "validate-models": "node scripts/node/validate-models.mjs",
     "validate-models:verbose": "node scripts/node/validate-models.mjs --verbose",
+    "validate-models:staging": "node scripts/node/validate-models.mjs --dir public/models/human/_staging --require-rig",
     "generate-models": "node scripts/node/generate-models.mjs",
     "generate-models:stats": "node scripts/node/generate-models.mjs --stats",
-    "setup-models": "npm run generate-models && npm run validate-models"
+    "generate-models:promote": "node scripts/node/generate-models.mjs --promote",
+    "promote-models": "node scripts/node/promote-models.mjs",
+    "setup-models": "npm run generate-models"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",

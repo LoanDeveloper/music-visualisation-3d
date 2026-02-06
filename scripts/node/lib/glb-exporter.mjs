@@ -18,6 +18,8 @@ import { dirname } from 'path';
  * @param {Object.<string, GeometryData>} meshes - Map of mesh name to geometry data
  * @param {object} [options] - Export options
  * @param {string} [options.generator] - Generator name for metadata
+ * @param {object} [options.rootExtras] - Optional glTF root extras metadata
+ * @param {object} [options.sceneExtras] - Optional scene extras metadata
  * @returns {Document}
  */
 export function createGLBDocument(meshes, options = {}) {
@@ -25,12 +27,18 @@ export function createGLBDocument(meshes, options = {}) {
   
   // Set generator metadata
   doc.getRoot().getAsset().generator = options.generator || 'music-visualisation-3d model generator';
+  if (options.rootExtras && typeof options.rootExtras === 'object') {
+    doc.getRoot().setExtras(options.rootExtras);
+  }
   
   // Create a buffer to hold all binary data (required for GLB export)
   const buffer = doc.createBuffer('buffer');
   
   // Create a single scene
   const scene = doc.createScene('Scene');
+  if (options.sceneExtras && typeof options.sceneExtras === 'object') {
+    scene.setExtras(options.sceneExtras);
+  }
   
   // Create meshes and nodes for each part
   for (const [name, geometry] of Object.entries(meshes)) {
@@ -139,13 +147,24 @@ export async function writeGLB(doc, filePath) {
  * @param {object} [options] - Export options
  * @param {boolean} [options.optimize=true] - Whether to optimize the document
  * @param {string} [options.generator] - Generator name for metadata
+ * @param {object} [options.rootExtras] - Optional glTF root extras metadata
+ * @param {object} [options.sceneExtras] - Optional scene extras metadata
  * @returns {Promise<void>}
  */
 export async function exportToGLB(meshes, filePath, options = {}) {
-  const { optimize = true, generator } = options;
+  const {
+    optimize = true,
+    generator,
+    rootExtras,
+    sceneExtras,
+  } = options;
   
   // Create document
-  let doc = createGLBDocument(meshes, { generator });
+  let doc = createGLBDocument(meshes, {
+    generator,
+    rootExtras,
+    sceneExtras,
+  });
   
   // Optimize if requested
   if (optimize) {
