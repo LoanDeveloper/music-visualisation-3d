@@ -25,7 +25,7 @@ export const LAYER_MINIMUMS = {
 export const SMOOTHING_FACTOR = 0.12;
 
 // Default edge threshold angle for EdgesGeometry (in degrees)
-export const EDGE_THRESHOLD_ANGLE = 20;
+export const EDGE_THRESHOLD_ANGLE = 34;
 
 // Pose crossfade duration (in seconds)
 // Set to 0 to avoid double arms/legs visibility between poses
@@ -40,8 +40,8 @@ export const POSE_CROSSFADE_DURATION = 0;
  *   and returns layer parameters
  */
 export const HUMAN_PRESETS = {
-  VEINS_FLOW: {
-    id: 'VEINS_FLOW',
+  'veines-flow': {
+    id: 'veines-flow',
     name: 'Veines Flow',
     description: 'La musique voyage a travers les veines',
     compute: (sb, sm, sh) => {
@@ -60,8 +60,8 @@ export const HUMAN_PRESETS = {
     },
   },
   
-  BRAIN_FOCUS: {
-    id: 'BRAIN_FOCUS',
+  'cerveau-focus': {
+    id: 'cerveau-focus',
     name: 'Cerveau Focus',
     description: 'La musique est le cerveau (aigus/mediums)',
     compute: (sb, sm, sh) => {
@@ -80,8 +80,8 @@ export const HUMAN_PRESETS = {
     },
   },
   
-  HEART_CORE: {
-    id: 'HEART_CORE',
+  'coeur-core': {
+    id: 'coeur-core',
     name: 'Coeur Core',
     description: 'La musique est le coeur (basses)',
     compute: (sb, sm, sh) => {
@@ -100,8 +100,8 @@ export const HUMAN_PRESETS = {
     },
   },
   
-  FULL_BODY_NETWORK: {
-    id: 'FULL_BODY_NETWORK',
+  'reseau-complet': {
+    id: 'reseau-complet',
     name: 'Reseau Complet',
     description: 'Silhouette + veines + organes equilibres',
     compute: (sb, sm, sh) => {
@@ -122,7 +122,7 @@ export const HUMAN_PRESETS = {
 };
 
 // Default preset
-export const DEFAULT_PRESET = 'FULL_BODY_NETWORK';
+export const DEFAULT_PRESET = 'reseau-complet';
 
 // Default pose
 export const DEFAULT_POSE = 'open';

@@ -15,11 +15,20 @@ import './App.css';
 
 // Get default settings from central schema (single source of truth)
 const DEFAULT_SETTINGS = getDefaultSettings();
+const DEFAULT_HUMAN_PARTICLE_TUNING = {
+  density: 1,
+  speed: 1,
+  pulse: 1,
+  sparkle: 1,
+  brightness: 1,
+  turbulence: 1,
+};
 
 function App() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioName, setAudioName] = useState('');
   const [analysisData, setAnalysisData] = useState(null);
+  const [liveBands, setLiveBands] = useState({ bass: 0, mid: 0, high: 0 });
   const [analysisStatus, setAnalysisStatus] = useState('idle');
   const [analysisError, setAnalysisError] = useState(null);
   const [currentTheme, setCurrentTheme] = useState('aurora');
@@ -31,11 +40,19 @@ function App() {
   const [humanPose, setHumanPose] = useState(DEFAULT_POSE);
   const [humanLayerLoading, setHumanLayerLoading] = useState(false);
   const [humanLayerError, setHumanLayerError] = useState(false);
+  const [humanParticleTuning, setHumanParticleTuning] = useState(DEFAULT_HUMAN_PARTICLE_TUNING);
 
   const audioRef = useRef(null);
   const sceneRef = useRef(null);
   const analysisRafRef = useRef(null);
   const isAnalysisRunningRef = useRef(false);
+  const lastBandOverlayUpdateRef = useRef(0);
+  const updateLiveBands = useCallback((bass, mid, high) => {
+    const now = performance.now();
+    if (now - lastBandOverlayUpdateRef.current < 180) return;
+    lastBandOverlayUpdateRef.current = now;
+    setLiveBands({ bass, mid, high });
+  }, []);
 
   // Handle settings change
   const handleSettingsChange = useCallback((newSettings) => {
@@ -58,6 +75,10 @@ function App() {
       if (success) {
         setHumanLayerEnabled(enabled);
         setHumanLayerError(false);
+        if (enabled && sceneRef.current) {
+          sceneRef.current.setHumanPreset(humanPreset);
+          sceneRef.current.setHumanParticleTuning(humanParticleTuning);
+        }
       } else {
         setHumanLayerEnabled(false);
         setHumanLayerError(true);
@@ -69,13 +90,14 @@ function App() {
     } finally {
       setHumanLayerLoading(false);
     }
-  }, []);
+  }, [humanParticleTuning, humanPreset]);
 
   const handleHumanPresetChange = useCallback((presetId) => {
-    if (sceneRef.current) {
-      sceneRef.current.setHumanPreset(presetId);
-      setHumanPreset(presetId);
-    }
+    setHumanPreset(presetId);
+  }, []);
+
+  const handleHumanParticleTuningChange = useCallback((nextTuning) => {
+    setHumanParticleTuning(nextTuning);
   }, []);
 
   const handleHumanPoseChange = useCallback(async (poseId) => {
@@ -92,10 +114,32 @@ function App() {
     }
   }, []);
 
-  const { initialize, startAnalysis, stopAnalysis, reset } = useAudioAnalysis(
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    sceneRef.current.setHumanPreset(humanPreset);
+    sceneRef.current.setHumanParticleTuning(humanParticleTuning);
+  }, [humanPreset, humanParticleTuning]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return undefined;
+
+    window.__musicVizDebug = {
+      setHumanPreset: (presetId) => sceneRef.current?.setHumanPreset(presetId),
+      setHumanLayerEnabled: (enabled) => sceneRef.current?.setHumanLayerEnabled(enabled),
+      setHumanParticleTuning: (tuning) => sceneRef.current?.setHumanParticleTuning(tuning),
+      getScene: () => sceneRef.current,
+    };
+
+    return () => {
+      delete window.__musicVizDebug;
+    };
+  });
+
+  const { initialize, startAnalysis, stopAnalysis } = useAudioAnalysis(
     audioRef,
     sceneRef,
-    visualSettings
+    visualSettings,
+    updateLiveBands
   );
 
   const startPrecomputedAnalysis = useCallback(() => {
@@ -143,12 +187,13 @@ function App() {
         dominantPitch: 0,
         stereo: null,
       });
+      updateLiveBands(frame.bass, frame.mid, frame.high);
 
       analysisRafRef.current = requestAnimationFrame(tick);
     };
 
     tick();
-  }, [analysisData]);
+  }, [analysisData, updateLiveBands]);
 
   const stopPrecomputedAnalysis = useCallback(() => {
     isAnalysisRunningRef.current = false;
@@ -201,6 +246,7 @@ function App() {
     setAudioUrl(url);
     setAudioName(name);
     setAnalysisData(null);
+    setLiveBands({ bass: 0, mid: 0, high: 0 });
     setAnalysisError(null);
     setAnalysisStatus(file ? 'analyzing' : 'idle');
 
@@ -414,6 +460,8 @@ function App() {
           onPoseChange={handleHumanPoseChange}
           isLoading={humanLayerLoading}
           hasError={humanLayerError}
+          particleTuning={humanParticleTuning}
+          onParticleTuningChange={handleHumanParticleTuningChange}
         />
       )}
 
@@ -438,6 +486,15 @@ function App() {
 
       {/* Zoom Control - always visible when scene is ready */}
       <ZoomControl sceneRef={sceneRef} />
+
+      {humanLayerEnabled && (
+        <div className="fixed top-14 right-2 sm:right-4 z-[6] px-2.5 py-1.5 rounded-lg border border-white/10 bg-black/45 backdrop-blur-xl text-[10px] text-foreground/75 min-w-[170px]">
+          <div className="font-medium text-foreground/85 mb-1">Preset: {humanPreset}</div>
+          <div>
+            B {Math.round(liveBands.bass * 100)}% / M {Math.round(liveBands.mid * 100)}% / H {Math.round(liveBands.high * 100)}%
+          </div>
+        </div>
+      )}
 
       {/* Keyboard shortcuts hint */}
       {audioUrl && (

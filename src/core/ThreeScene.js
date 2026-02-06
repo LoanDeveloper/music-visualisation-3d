@@ -3,6 +3,7 @@ import ParticleSystem from './ParticleSystem';
 import CameraController from './CameraController';
 import HumanLayer from './HumanLayer';
 import { getPalette } from '../utils/colorPalettes';
+import { DEFAULT_PRESET } from '../utils/humanPresets';
 
 /**
  * ThreeScene class
@@ -30,6 +31,15 @@ class ThreeScene {
 
     // Audio data
     this.currentFrequencyBands = { bass: 0, mid: 0, high: 0 };
+    this.humanPresetId = DEFAULT_PRESET;
+    this.humanParticleTuning = {
+      density: 1,
+      speed: 1,
+      pulse: 1,
+      sparkle: 1,
+      brightness: 1,
+      turbulence: 1,
+    };
 
     this.initialize();
   }
@@ -73,9 +83,22 @@ class ThreeScene {
 
     // Create human layer (matrix vibe - lazy loaded on enable)
     this.humanLayer = new HumanLayer(this.scene);
+    this.particleSystem.setHumanPreset(this.humanPresetId);
+    this.particleSystem.setHumanParticleTuning(this.humanParticleTuning);
 
     // Start animation loop
     this.startAnimation();
+
+    // Use a front-facing orbit angle so silhouette remains readable by default.
+    if (this.cameraController) {
+      this.cameraController.rotation.x = 0;
+      this.cameraController.targetRotation.x = 0;
+      this.cameraController.rotation.y = Math.PI / 2;
+      this.cameraController.targetRotation.y = Math.PI / 2;
+      this.cameraController.distance = 300;
+      this.cameraController.setAutoRotate(false);
+      this.cameraController.updateCameraPosition();
+    }
 
     if (import.meta.env.DEV) console.log('[ThreeScene] Initialized');
   }
@@ -293,6 +316,10 @@ class ThreeScene {
         const active = enabled && ok;
         this.particleSystem.setStencilMask(active);
         this.particleSystem.setHumanLayerMode(active);
+        if (active) {
+          this.particleSystem.setHumanPreset(this.humanPresetId);
+          this.particleSystem.setHumanParticleTuning(this.humanParticleTuning);
+        }
       }
       return ok;
     }
@@ -304,8 +331,23 @@ class ThreeScene {
    * @param {string} presetId - Preset ID from humanPresets
    */
   setHumanPreset(presetId) {
+    this.humanPresetId = presetId || DEFAULT_PRESET;
     if (this.humanLayer) {
-      this.humanLayer.setPreset(presetId);
+      this.humanLayer.setPreset(this.humanPresetId);
+    }
+    if (this.particleSystem) {
+      this.particleSystem.setHumanPreset(this.humanPresetId);
+    }
+  }
+
+  setHumanParticleTuning(tuning) {
+    this.humanParticleTuning = {
+      ...this.humanParticleTuning,
+      ...(tuning || {}),
+    };
+
+    if (this.particleSystem) {
+      this.particleSystem.setHumanParticleTuning(this.humanParticleTuning);
     }
   }
 

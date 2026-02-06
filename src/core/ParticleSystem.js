@@ -31,32 +31,207 @@ const VEIN_PATH_GROUPS = {
   high: [1, 2, 5, 6, 11, 12, 15, 16, 17, 18],
 };
 
-const VEIN_WBC_PRESET = {
-  bassSmooth: 0.16,
-  midSmooth: 0.18,
-  highSmooth: 0.22,
-  baseFlowSpeed: 0.42,
-  midFlowBoost: 2.05,
-  heartbeatBase: 3.0,
-  heartbeatBoost: 5.0,
-  bassPulse: 0.10,
-  bassPulseBoost: 0.85,
-  baseAgitation: 0.18,
-  midAgitationBoost: 0.95,
-  shimmerBase: 0.35,
-  highShimmerBoost: 0.95,
-  shimmerBaseSpeed: 8.0,
-  highShimmerSpeedBoost: 24.0,
-  baseBrightness: 0.42,
-  bandBrightnessBoost: 1.25,
-  highBrightnessBoost: 1.05,
-  baseWhiteMix: 0.45,
-  highWhiteMixBoost: 0.35,
-  baseSize: 1.6,
-  midSizeBoost: 2.4,
-  bassSizeBoost: 1.1,
-  baseOpacity: 0.58,
-  highOpacityBoost: 0.24,
+const TAU = Math.PI * 2;
+const HUMAN_DEFAULT_PRESET_ID = 'reseau-complet';
+
+const HUMAN_TUNING_DEFAULTS = {
+  density: 1,
+  speed: 1,
+  pulse: 1,
+  sparkle: 1,
+  brightness: 1,
+  turbulence: 1,
+};
+
+const BODY_CAPSULE_DEFINITIONS = [
+  { id: 'head', a: [0, 74, 5], b: [0, 96, 5], radius: 15 },
+  { id: 'neck', a: [0, 58, 4], b: [0, 72, 4], radius: 9 },
+  { id: 'torso-upper', a: [0, 48, 2], b: [0, 14, 2], radius: 27 },
+  { id: 'torso-lower', a: [0, 14, 2], b: [0, -24, 2], radius: 24 },
+  { id: 'pelvis', a: [0, -24, 2], b: [0, -44, 2], radius: 21 },
+  { id: 'upper-arm-l', a: [-10, 34, 7], b: [-56, 28, 12], radius: 10 },
+  { id: 'forearm-l', a: [-56, 28, 12], b: [-72, -16, 11], radius: 8.5 },
+  { id: 'upper-arm-r', a: [10, 34, 7], b: [56, 28, 12], radius: 10 },
+  { id: 'forearm-r', a: [56, 28, 12], b: [72, -16, 11], radius: 8.5 },
+  { id: 'thigh-l', a: [-9, -30, 5], b: [-18, -80, 9], radius: 13 },
+  { id: 'calf-l', a: [-18, -80, 9], b: [-12, -114, 11], radius: 10.5 },
+  { id: 'thigh-r', a: [9, -30, 5], b: [18, -80, 9], radius: 13 },
+  { id: 'calf-r', a: [18, -80, 9], b: [12, -114, 11], radius: 10.5 },
+];
+
+const HUMAN_PARTICLE_PRESETS = {
+  'coeur-core': {
+    id: 'coeur-core',
+    label: 'Coeur Core',
+    mode: 'heart',
+    density: 0.54,
+    speedBase: 0.34,
+    speedGainMid: 1.05,
+    pulseGainBass: 1.8,
+    turbulenceGainMid: 0.42,
+    sparkleGainHigh: 0.55,
+    brightnessBase: 0.34,
+    brightnessGainHigh: 1.08,
+    smoothingBass: 0.20,
+    smoothingMid: 0.16,
+    smoothingHigh: 0.18,
+    pathPool: [13, 14, 15, 16, 1, 2],
+    secondaryPathPool: [0, 7, 8],
+    containmentCapsules: ['torso-upper', 'torso-lower', 'neck'],
+    containmentPadding: 0.91,
+    containmentDamping: 1,
+    centerX: 0,
+    centerY: 26,
+    centerZ: 5,
+    regionRadiusX: 22,
+    regionRadiusY: 28,
+    regionRadiusZ: 15,
+    swirlBase: 0.35,
+    swirlGainMid: 1.8,
+    sizeBase: 1.7,
+    sizeBassGain: 1.8,
+    sizeMidGain: 0.7,
+    opacityBase: 0.56,
+    opacityGain: 0.26,
+    whiteMixBase: 0.44,
+    whiteMixHighGain: 0.22,
+  },
+  'veines-flow': {
+    id: 'veines-flow',
+    label: 'Veines Flow',
+    mode: 'veins',
+    density: 0.72,
+    speedBase: 0.62,
+    speedGainMid: 2.35,
+    pulseGainBass: 1.15,
+    turbulenceGainMid: 0.78,
+    sparkleGainHigh: 0.88,
+    brightnessBase: 0.4,
+    brightnessGainHigh: 1.24,
+    smoothingBass: 0.16,
+    smoothingMid: 0.21,
+    smoothingHigh: 0.24,
+    pathPool: [0, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14],
+    secondaryPathPool: [1, 2, 11, 12, 15, 16, 17, 18],
+    containmentCapsules: [
+      'head',
+      'neck',
+      'torso-upper',
+      'torso-lower',
+      'pelvis',
+      'upper-arm-l',
+      'forearm-l',
+      'upper-arm-r',
+      'forearm-r',
+      'thigh-l',
+      'calf-l',
+      'thigh-r',
+      'calf-r',
+    ],
+    containmentPadding: 0.92,
+    containmentDamping: 1,
+    centerX: 0,
+    centerY: 18,
+    centerZ: 4,
+    regionRadiusX: 34,
+    regionRadiusY: 98,
+    regionRadiusZ: 22,
+    swirlBase: 0.68,
+    swirlGainMid: 2.3,
+    sizeBase: 1.45,
+    sizeBassGain: 0.9,
+    sizeMidGain: 2.2,
+    opacityBase: 0.56,
+    opacityGain: 0.3,
+    whiteMixBase: 0.46,
+    whiteMixHighGain: 0.33,
+  },
+  'reseau-complet': {
+    id: 'reseau-complet',
+    label: 'Reseau Complet',
+    mode: 'network',
+    density: 0.98,
+    speedBase: 0.44,
+    speedGainMid: 1.42,
+    pulseGainBass: 0.96,
+    turbulenceGainMid: 0.44,
+    sparkleGainHigh: 0.38,
+    brightnessBase: 0.26,
+    brightnessGainHigh: 0.68,
+    smoothingBass: 0.17,
+    smoothingMid: 0.18,
+    smoothingHigh: 0.2,
+    pathPool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    secondaryPathPool: [0, 3, 4, 5, 6, 9, 10, 13, 14, 15, 16],
+    containmentCapsules: [
+      'head',
+      'neck',
+      'torso-upper',
+      'torso-lower',
+      'pelvis',
+      'upper-arm-l',
+      'forearm-l',
+      'upper-arm-r',
+      'forearm-r',
+      'thigh-l',
+      'calf-l',
+      'thigh-r',
+      'calf-r',
+    ],
+    containmentPadding: 0.9,
+    containmentDamping: 1,
+    centerX: 0,
+    centerY: 10,
+    centerZ: 4,
+    regionRadiusX: 38,
+    regionRadiusY: 106,
+    regionRadiusZ: 24,
+    swirlBase: 0.24,
+    swirlGainMid: 0.85,
+    sizeBase: 1.32,
+    sizeBassGain: 0.72,
+    sizeMidGain: 1.34,
+    opacityBase: 0.5,
+    opacityGain: 0.18,
+    whiteMixBase: 0.42,
+    whiteMixHighGain: 0.2,
+  },
+  'cerveau-focus': {
+    id: 'cerveau-focus',
+    label: 'Cerveau Focus',
+    mode: 'brain',
+    density: 0.58,
+    speedBase: 0.72,
+    speedGainMid: 1.86,
+    pulseGainBass: 0.34,
+    turbulenceGainMid: 1.12,
+    sparkleGainHigh: 1.48,
+    brightnessBase: 0.4,
+    brightnessGainHigh: 1.9,
+    smoothingBass: 0.15,
+    smoothingMid: 0.19,
+    smoothingHigh: 0.24,
+    pathPool: [1, 2, 15, 16],
+    secondaryPathPool: [1, 2, 15, 16],
+    containmentCapsules: ['head', 'neck'],
+    containmentPadding: 0.9,
+    containmentDamping: 1,
+    centerX: 0,
+    centerY: 83,
+    centerZ: 6,
+    regionRadiusX: 19,
+    regionRadiusY: 14,
+    regionRadiusZ: 15,
+    swirlBase: 0.95,
+    swirlGainMid: 2.8,
+    sizeBase: 1.35,
+    sizeBassGain: 0.35,
+    sizeMidGain: 1.1,
+    opacityBase: 0.58,
+    opacityGain: 0.22,
+    whiteMixBase: 0.4,
+    whiteMixHighGain: 0.35,
+  },
 };
 
 /**
@@ -134,8 +309,12 @@ class ParticleSystem {
     this.particleGroups = new Uint8Array(particleCount); // 0=bass, 1=mid, 2=high
     this.particlePhases = new Float32Array(particleCount); // For animation
 
-    // Human layer particle mode (veins / white blood cells)
+    // Human layer particle mode
     this.humanLayerMode = false;
+    this.humanPresetId = HUMAN_DEFAULT_PRESET_ID;
+    this.humanPreset = HUMAN_PARTICLE_PRESETS[this.humanPresetId];
+    this.humanActiveCount = particleCount;
+    this.humanTuning = { ...HUMAN_TUNING_DEFAULTS };
     this.veinNetworkReady = false;
     this.veinPathPointCount = VEIN_POINT_SAMPLES;
     this.veinPathCount = 0;
@@ -143,6 +322,7 @@ class ParticleSystem {
     this.veinPathPositions = null;
     this.veinPathTangents = null;
     this.veinPathIndices = new Uint16Array(particleCount);
+    this.veinPathSecondaryIndices = new Uint16Array(particleCount);
     this.veinProgress = new Float32Array(particleCount);
     this.veinSpeed = new Float32Array(particleCount);
     this.veinRadius = new Float32Array(particleCount);
@@ -152,6 +332,9 @@ class ParticleSystem {
     this.veinBass = 0;
     this.veinMid = 0;
     this.veinHigh = 0;
+    this.bodyCapsules = [];
+    this.bodyCapsuleLookup = {};
+    this.activeContainmentCapsules = [];
 
     // Trail history (for each particle, store last N positions)
     // Note: Ring buffer arrays are created in createTrailSystem()
@@ -182,6 +365,8 @@ class ParticleSystem {
 
     // Band-specific colors
     this.updateBandColors();
+    this.initializeBodyCapsuleRig();
+    this.applyHumanPresetConfig(this.humanPresetId);
 
     this.createParticles();
     
@@ -811,6 +996,219 @@ class ParticleSystem {
     }
   }
 
+  clamp01(value) {
+    if (value < 0) return 0;
+    if (value > 1) return 1;
+    return value;
+  }
+
+  initializeBodyCapsuleRig() {
+    this.bodyCapsules.length = 0;
+    this.bodyCapsuleLookup = {};
+
+    for (let i = 0; i < BODY_CAPSULE_DEFINITIONS.length; i++) {
+      const definition = BODY_CAPSULE_DEFINITIONS[i];
+      const ax = definition.a[0];
+      const ay = definition.a[1];
+      const az = definition.a[2];
+      const bx = definition.b[0];
+      const by = definition.b[1];
+      const bz = definition.b[2];
+      const dx = bx - ax;
+      const dy = by - ay;
+      const dz = bz - az;
+      const lengthSq = Math.max(dx * dx + dy * dy + dz * dz, 0.0001);
+      const length = Math.sqrt(lengthSq);
+      const tx = dx / length;
+      const ty = dy / length;
+      const tz = dz / length;
+
+      let rx = 0;
+      let ry = 1;
+      let rz = 0;
+      if (Math.abs(ty) > 0.88) {
+        rx = 1;
+        ry = 0;
+        rz = 0;
+      }
+
+      let nx = ty * rz - tz * ry;
+      let ny = tz * rx - tx * rz;
+      let nz = tx * ry - ty * rx;
+      let nLen = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      if (nLen < 0.0001) {
+        nx = 1;
+        ny = 0;
+        nz = 0;
+        nLen = 1;
+      }
+      nx /= nLen;
+      ny /= nLen;
+      nz /= nLen;
+
+      let bxAxis = ty * nz - tz * ny;
+      let byAxis = tz * nx - tx * nz;
+      let bzAxis = tx * ny - ty * nx;
+      let bLen = Math.sqrt(bxAxis * bxAxis + byAxis * byAxis + bzAxis * bzAxis);
+      if (bLen < 0.0001) {
+        bxAxis = 0;
+        byAxis = 0;
+        bzAxis = 1;
+        bLen = 1;
+      }
+      bxAxis /= bLen;
+      byAxis /= bLen;
+      bzAxis /= bLen;
+
+      this.bodyCapsules.push({
+        id: definition.id,
+        ax,
+        ay,
+        az,
+        dx,
+        dy,
+        dz,
+        lengthSq,
+        radius: definition.radius,
+        nx,
+        ny,
+        nz,
+        bx: bxAxis,
+        by: byAxis,
+        bz: bzAxis,
+      });
+      this.bodyCapsuleLookup[definition.id] = i;
+    }
+  }
+
+  applyHumanPresetConfig(presetId) {
+    const preset = HUMAN_PARTICLE_PRESETS[presetId] || HUMAN_PARTICLE_PRESETS[HUMAN_DEFAULT_PRESET_ID];
+    this.humanPresetId = preset.id;
+    this.humanPreset = preset;
+    this.activeContainmentCapsules.length = 0;
+
+    for (let i = 0; i < preset.containmentCapsules.length; i++) {
+      const capsuleName = preset.containmentCapsules[i];
+      const capsuleIndex = this.bodyCapsuleLookup[capsuleName];
+      if (typeof capsuleIndex === 'number') {
+        this.activeContainmentCapsules.push(capsuleIndex);
+      }
+    }
+
+    if (this.activeContainmentCapsules.length === 0) {
+      for (let i = 0; i < this.bodyCapsules.length; i++) {
+        this.activeContainmentCapsules.push(i);
+      }
+    }
+
+    this.updateHumanActiveCount();
+  }
+
+  updateHumanActiveCount() {
+    const presetDensity = this.humanPreset ? this.humanPreset.density : 1;
+    const density = this.clamp01(presetDensity * this.humanTuning.density);
+    this.humanActiveCount = Math.max(1, Math.floor(this.particleCount * Math.max(0.08, density)));
+
+    if (this.geometry) {
+      if (this.humanLayerMode) {
+        this.geometry.setDrawRange(0, this.humanActiveCount);
+      } else {
+        this.geometry.setDrawRange(0, this.particleCount);
+      }
+    }
+  }
+
+  samplePointInCapsule(capsule, radiusScale, target, i3) {
+    const t = Math.random();
+    const cx = capsule.ax + capsule.dx * t;
+    const cy = capsule.ay + capsule.dy * t;
+    const cz = capsule.az + capsule.dz * t;
+    const angle = Math.random() * TAU;
+    const radialDistance = Math.sqrt(Math.random()) * capsule.radius * radiusScale;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const ox = (capsule.nx * cosA + capsule.bx * sinA) * radialDistance;
+    const oy = (capsule.ny * cosA + capsule.by * sinA) * radialDistance;
+    const oz = (capsule.nz * cosA + capsule.bz * sinA) * radialDistance;
+    target[i3] = cx + ox;
+    target[i3 + 1] = cy + oy;
+    target[i3 + 2] = cz + oz;
+  }
+
+  clampParticleInsideHuman(i3, positions, damping, padding) {
+    const x = positions[i3];
+    const y = positions[i3 + 1];
+    const z = positions[i3 + 2];
+    const containment = this.activeContainmentCapsules;
+    if (!containment || containment.length === 0) return;
+
+    let nearestDistSq = Number.POSITIVE_INFINITY;
+    let nearestRadius = 1;
+    let nearestX = x;
+    let nearestY = y;
+    let nearestZ = z;
+    let nearestQx = x;
+    let nearestQy = y;
+    let nearestQz = z;
+    let isInside = false;
+
+    for (let i = 0; i < containment.length; i++) {
+      const capsule = this.bodyCapsules[containment[i]];
+      const px = x - capsule.ax;
+      const py = y - capsule.ay;
+      const pz = z - capsule.az;
+      let t = (px * capsule.dx + py * capsule.dy + pz * capsule.dz) / capsule.lengthSq;
+      if (t < 0) t = 0;
+      else if (t > 1) t = 1;
+
+      const qx = capsule.ax + capsule.dx * t;
+      const qy = capsule.ay + capsule.dy * t;
+      const qz = capsule.az + capsule.dz * t;
+      const vx = x - qx;
+      const vy = y - qy;
+      const vz = z - qz;
+      const distSq = vx * vx + vy * vy + vz * vz;
+      const effectiveRadius = capsule.radius * padding;
+      const effectiveRadiusSq = effectiveRadius * effectiveRadius;
+
+      if (distSq <= effectiveRadiusSq) {
+        isInside = true;
+        break;
+      }
+
+      if (distSq < nearestDistSq) {
+        nearestDistSq = distSq;
+        nearestRadius = effectiveRadius;
+        nearestQx = qx;
+        nearestQy = qy;
+        nearestQz = qz;
+        nearestX = vx;
+        nearestY = vy;
+        nearestZ = vz;
+      }
+    }
+
+    if (isInside) return;
+
+    if (nearestDistSq > 0.000001) {
+      const insetRadius = Math.max(0, nearestRadius - 0.0015);
+      const scale = insetRadius / Math.sqrt(nearestDistSq);
+      positions[i3] = nearestQx + nearestX * scale;
+      positions[i3 + 1] = nearestQy + nearestY * scale;
+      positions[i3 + 2] = nearestQz + nearestZ * scale;
+    } else {
+      positions[i3] = nearestQx + Math.max(0, nearestRadius - 0.0015);
+      positions[i3 + 1] = nearestQy;
+      positions[i3 + 2] = nearestQz;
+    }
+
+    if (damping < 0.999) {
+      this.velocities[i3] *= damping;
+      this.velocities[i3 + 1] *= damping;
+      this.velocities[i3 + 2] *= damping;
+    }
+  }
+
   /**
    * Precompute vein-like spline paths once for the human mode.
    */
@@ -904,112 +1302,143 @@ class ParticleSystem {
   }
 
   /**
-   * Generate particles constrained to precomputed vein paths.
+   * Generate particles for the active human preset.
    */
   generateVeinsWbcPositions(positions, colors) {
     this.ensureVeinNetwork();
-
+    const preset = this.humanPreset || HUMAN_PARTICLE_PRESETS[HUMAN_DEFAULT_PRESET_ID];
     const pointCount = this.veinPathPointCount;
     const segmentCount = pointCount - 1;
     const stride = this.veinPathStride;
     const pathPositions = this.veinPathPositions;
     const pathTangents = this.veinPathTangents;
+    const pathPool = preset.pathPool && preset.pathPool.length > 0 ? preset.pathPool : VEIN_PATH_GROUPS.mid;
+    const secondaryPool = preset.secondaryPathPool && preset.secondaryPathPool.length > 0
+      ? preset.secondaryPathPool
+      : pathPool;
+    const whiteMix = preset.whiteMixBase;
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
       const group = i < this.bassCount ? 0 : (i < this.bassCount + this.midCount ? 1 : 2);
-      const pathPool = group === 0
-        ? VEIN_PATH_GROUPS.bass
-        : (group === 1 ? VEIN_PATH_GROUPS.mid : VEIN_PATH_GROUPS.high);
-
-      const pathIndex = pathPool[Math.floor(Math.random() * pathPool.length)];
-      const progress = Math.random();
-
       this.particleGroups[i] = group;
-      this.particlePhases[i] = Math.random() * Math.PI * 2;
-      this.veinPathIndices[i] = pathIndex;
-      this.veinProgress[i] = progress;
-      this.veinSpeed[i] = (group === 0 ? 0.34 : (group === 1 ? 0.50 : 0.72)) + Math.random() * 0.32;
-      this.veinRadius[i] = (group === 0 ? 2.2 : (group === 1 ? 1.5 : 0.9)) + Math.random() * 0.9;
-      this.veinSwirlRate[i] = 0.7 + Math.random() * (group === 2 ? 1.8 : 1.2);
-      this.veinPulseOffset[i] = 0.5 + Math.random() * 0.9;
-      this.veinJitter[i] = (group === 0 ? 0.15 : 0.3) + Math.random() * 0.35;
+      this.particlePhases[i] = Math.random() * TAU;
+      this.veinProgress[i] = Math.random();
+      this.veinSpeed[i] = 0.58 + Math.random() * (group === 2 ? 0.72 : 0.56);
+      this.veinRadius[i] = (group === 0 ? 2.6 : (group === 1 ? 1.8 : 1.1)) + Math.random() * 0.95;
+      this.veinSwirlRate[i] = 0.5 + Math.random() * (group === 2 ? 2.3 : 1.5);
+      this.veinPulseOffset[i] = Math.random() * TAU;
+      this.veinJitter[i] = 0.25 + Math.random() * 0.75;
 
-      const pathOffset = pathIndex * stride;
-      const sampled = progress * segmentCount;
-      let segment = sampled | 0;
-      if (segment >= segmentCount) segment = segmentCount - 1;
-      const localT = sampled - segment;
-      const indexA = pathOffset + segment * 3;
-      const indexB = indexA + 3;
+      if (preset.mode === 'heart' || preset.mode === 'brain') {
+        let rx = (Math.random() * 2 - 1) * preset.regionRadiusX;
+        let ry = (Math.random() * 2 - 1) * preset.regionRadiusY;
+        let rz = (Math.random() * 2 - 1) * preset.regionRadiusZ;
+        const ellipsoid = (rx * rx) / (preset.regionRadiusX * preset.regionRadiusX)
+          + (ry * ry) / (preset.regionRadiusY * preset.regionRadiusY)
+          + (rz * rz) / (preset.regionRadiusZ * preset.regionRadiusZ);
+        if (ellipsoid > 1) {
+          const inv = 1 / Math.sqrt(ellipsoid);
+          rx *= inv;
+          ry *= inv;
+          rz *= inv;
+        }
 
-      const px = pathPositions[indexA] + (pathPositions[indexB] - pathPositions[indexA]) * localT;
-      const py = pathPositions[indexA + 1] + (pathPositions[indexB + 1] - pathPositions[indexA + 1]) * localT;
-      const pz = pathPositions[indexA + 2] + (pathPositions[indexB + 2] - pathPositions[indexA + 2]) * localT;
+        const centerX = preset.centerX + (preset.mode === 'brain' ? (Math.random() - 0.5) * 6 : 0);
+        const centerY = preset.centerY + (preset.mode === 'heart' ? (Math.random() - 0.5) * 8 : 0);
+        const centerZ = preset.centerZ + (Math.random() - 0.5) * 3;
+        const px = centerX + rx;
+        const py = centerY + ry;
+        const pz = centerZ + rz;
 
-      let tx = pathTangents[indexA] + (pathTangents[indexB] - pathTangents[indexA]) * localT;
-      let ty = pathTangents[indexA + 1] + (pathTangents[indexB + 1] - pathTangents[indexA + 1]) * localT;
-      let tz = pathTangents[indexA + 2] + (pathTangents[indexB + 2] - pathTangents[indexA + 2]) * localT;
+        this.basePositions[i3] = centerX;
+        this.basePositions[i3 + 1] = centerY;
+        this.basePositions[i3 + 2] = centerZ;
 
-      const tangentLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
-      tx /= tangentLen;
-      ty /= tangentLen;
-      tz /= tangentLen;
+        const dirLen = Math.sqrt(rx * rx + ry * ry + rz * rz) || 1;
+        this.velocities[i3] = rx / dirLen;
+        this.velocities[i3 + 1] = ry / dirLen;
+        this.velocities[i3 + 2] = rz / dirLen;
 
-      let nx = -tz;
-      let ny = 0;
-      let nz = tx;
-      let normalLen = Math.sqrt(nx * nx + ny * ny + nz * nz);
-      if (normalLen < 0.0001) {
-        nx = 1;
-        ny = 0;
-        nz = 0;
-        normalLen = 1;
+        this.veinPathIndices[i] = pathPool[i % pathPool.length];
+        this.veinPathSecondaryIndices[i] = secondaryPool[(i + group) % secondaryPool.length];
+
+        positions[i3] = px;
+        positions[i3 + 1] = py;
+        positions[i3 + 2] = pz;
+      } else {
+        const pathIndex = pathPool[Math.floor(Math.random() * pathPool.length)];
+        const secondaryPathIndex = secondaryPool[Math.floor(Math.random() * secondaryPool.length)];
+        const progress = this.veinProgress[i];
+        this.veinPathIndices[i] = pathIndex;
+        this.veinPathSecondaryIndices[i] = secondaryPathIndex;
+
+        const pathOffset = pathIndex * stride;
+        const sampled = progress * segmentCount;
+        let segment = sampled | 0;
+        if (segment >= segmentCount) segment = segmentCount - 1;
+        const localT = sampled - segment;
+        const indexA = pathOffset + segment * 3;
+        const indexB = indexA + 3;
+
+        const px = pathPositions[indexA] + (pathPositions[indexB] - pathPositions[indexA]) * localT;
+        const py = pathPositions[indexA + 1] + (pathPositions[indexB + 1] - pathPositions[indexA + 1]) * localT;
+        const pz = pathPositions[indexA + 2] + (pathPositions[indexB + 2] - pathPositions[indexA + 2]) * localT;
+
+        let tx = pathTangents[indexA] + (pathTangents[indexB] - pathTangents[indexA]) * localT;
+        let ty = pathTangents[indexA + 1] + (pathTangents[indexB + 1] - pathTangents[indexA + 1]) * localT;
+        let tz = pathTangents[indexA + 2] + (pathTangents[indexB + 2] - pathTangents[indexA + 2]) * localT;
+        const tangentLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
+        tx /= tangentLen;
+        ty /= tangentLen;
+        tz /= tangentLen;
+
+        this.basePositions[i3] = px;
+        this.basePositions[i3 + 1] = py;
+        this.basePositions[i3 + 2] = pz;
+        this.velocities[i3] = tx;
+        this.velocities[i3 + 1] = ty;
+        this.velocities[i3 + 2] = tz;
+
+        positions[i3] = px;
+        positions[i3 + 1] = py;
+        positions[i3 + 2] = pz;
       }
-      nx /= normalLen;
-      ny /= normalLen;
-      nz /= normalLen;
 
-      let bx = ty * nz - tz * ny;
-      let by = tz * nx - tx * nz;
-      let bz = tx * ny - ty * nx;
-      const binormalLen = Math.sqrt(bx * bx + by * by + bz * bz) || 1;
-      bx /= binormalLen;
-      by /= binormalLen;
-      bz /= binormalLen;
+      this.clampParticleInsideHuman(i3, positions, 0.98, preset.containmentPadding);
 
-      const angle = this.particlePhases[i];
-      const radius = this.veinRadius[i];
-      const cosA = Math.cos(angle);
-      const sinA = Math.sin(angle);
-      const ox = (nx * cosA + bx * sinA) * radius;
-      const oy = (ny * cosA + by * sinA) * radius;
-      const oz = (nz * cosA + bz * sinA) * radius;
-
-      positions[i3] = px + ox;
-      positions[i3 + 1] = py + oy;
-      positions[i3 + 2] = pz + oz;
-
-      this.basePositions[i3] = px;
-      this.basePositions[i3 + 1] = py;
-      this.basePositions[i3 + 2] = pz;
-
-      this.velocities[i3] = tx * 0.05;
-      this.velocities[i3 + 1] = ty * 0.05;
-      this.velocities[i3 + 2] = tz * 0.05;
-
-      const baseColor = group === 0
-        ? this.bandColors.bass
-        : (group === 1 ? this.bandColors.mid : this.bandColors.high);
-      const whiteMix = 0.55;
+      const baseColor = group === 0 ? this.bandColors.bass : (group === 1 ? this.bandColors.mid : this.bandColors.high);
       colors[i3] = baseColor[0] * (1 - whiteMix) + whiteMix;
       colors[i3 + 1] = baseColor[1] * (1 - whiteMix) + whiteMix;
       colors[i3 + 2] = baseColor[2] * (1 - whiteMix) + whiteMix;
     }
+
+    this.updateHumanActiveCount();
+  }
+
+  setHumanPreset(presetId) {
+    this.applyHumanPresetConfig(presetId);
+    if (this.humanLayerMode) {
+      this.veinBass = 0;
+      this.veinMid = 0;
+      this.veinHigh = 0;
+      this.rebuildParticleLayout();
+    }
+  }
+
+  setHumanParticleTuning(tuning) {
+    if (!tuning) return;
+    if (typeof tuning.density === 'number') this.humanTuning.density = Math.max(0.2, Math.min(1.6, tuning.density));
+    if (typeof tuning.speed === 'number') this.humanTuning.speed = Math.max(0.2, Math.min(2.2, tuning.speed));
+    if (typeof tuning.pulse === 'number') this.humanTuning.pulse = Math.max(0.2, Math.min(2.2, tuning.pulse));
+    if (typeof tuning.sparkle === 'number') this.humanTuning.sparkle = Math.max(0.2, Math.min(2.4, tuning.sparkle));
+    if (typeof tuning.brightness === 'number') this.humanTuning.brightness = Math.max(0.2, Math.min(2.2, tuning.brightness));
+    if (typeof tuning.turbulence === 'number') this.humanTuning.turbulence = Math.max(0.2, Math.min(2.2, tuning.turbulence));
+    this.updateHumanActiveCount();
   }
 
   /**
-   * Toggle human-mode preset (veins / white blood cells).
+   * Toggle human-mode particle rendering.
    */
   setHumanLayerMode(enabled) {
     const useHumanMode = !!enabled;
@@ -1024,10 +1453,9 @@ class ParticleSystem {
       const texture = useHumanMode
         ? this.particleTextures.circle
         : (this.particleTextures[this.settings.particleShape] || this.particleTextures.circle);
-      if (this.material.map !== texture) {
-        this.material.map = texture;
-        this.material.needsUpdate = true;
-      }
+      this.material.map = texture;
+      this.material.blending = useHumanMode ? THREE.NormalBlending : THREE.AdditiveBlending;
+      this.material.needsUpdate = true;
     }
 
     if (this.trailLines) {
@@ -1042,6 +1470,7 @@ class ParticleSystem {
     }
 
     this.rebuildParticleLayout();
+    this.updateHumanActiveCount();
   }
 
   /**
@@ -1057,6 +1486,7 @@ class ParticleSystem {
 
     this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    this.geometry.setDrawRange(0, this.humanLayerMode ? this.humanActiveCount : this.particleCount);
 
     // Create material with texture
     const texture = this.humanLayerMode
@@ -1069,7 +1499,7 @@ class ParticleSystem {
       vertexColors: true,
       transparent: true,
       opacity: this.settings.particleOpacity,
-      blending: THREE.AdditiveBlending,
+      blending: this.humanLayerMode ? THREE.NormalBlending : THREE.AdditiveBlending,
       depthWrite: false,
     });
 
@@ -1170,36 +1600,124 @@ class ParticleSystem {
   }
 
   /**
-   * Allocation-free update for the human-layer veins / white blood cells mode.
+   * Allocation-free update for human-layer presets.
    */
   updateVeinsWbcParticles(bass, mid, high, positions, colors) {
-    this.veinBass += (bass - this.veinBass) * VEIN_WBC_PRESET.bassSmooth;
-    this.veinMid += (mid - this.veinMid) * VEIN_WBC_PRESET.midSmooth;
-    this.veinHigh += (high - this.veinHigh) * VEIN_WBC_PRESET.highSmooth;
+    const preset = this.humanPreset || HUMAN_PARTICLE_PRESETS[HUMAN_DEFAULT_PRESET_ID];
+    const activeCount = this.humanActiveCount;
+    if (activeCount <= 0) return;
 
-    const flowSpeed = VEIN_WBC_PRESET.baseFlowSpeed + this.veinMid * VEIN_WBC_PRESET.midFlowBoost;
-    const heartbeatWave = Math.sin(this.time * (VEIN_WBC_PRESET.heartbeatBase + this.veinBass * VEIN_WBC_PRESET.heartbeatBoost));
-    const heartbeatPulse = Math.max(0, heartbeatWave) * this.veinBass;
-    const pulseStrength = VEIN_WBC_PRESET.bassPulse + heartbeatPulse * VEIN_WBC_PRESET.bassPulseBoost;
-    const agitation = VEIN_WBC_PRESET.baseAgitation + this.veinMid * VEIN_WBC_PRESET.midAgitationBoost;
-    const shimmerStrength = VEIN_WBC_PRESET.shimmerBase + this.veinHigh * VEIN_WBC_PRESET.highShimmerBoost;
-    const shimmerSpeed = VEIN_WBC_PRESET.shimmerBaseSpeed + this.veinHigh * VEIN_WBC_PRESET.highShimmerSpeedBoost;
+    this.veinBass += (bass - this.veinBass) * preset.smoothingBass;
+    this.veinMid += (mid - this.veinMid) * preset.smoothingMid;
+    this.veinHigh += (high - this.veinHigh) * preset.smoothingHigh;
 
+    const speedScale = preset.speedBase + this.veinMid * preset.speedGainMid * this.humanTuning.speed;
+    const pulseScale = this.veinBass * preset.pulseGainBass * this.humanTuning.pulse;
+    const turbulenceScale = (0.3 + this.veinMid * preset.turbulenceGainMid) * this.humanTuning.turbulence;
+    const sparkleScale = this.humanTuning.sparkle;
+    const brightnessScale = this.humanTuning.brightness;
+    const containmentPadding = preset.containmentPadding;
+    const containmentDamping = preset.containmentDamping;
+    const whiteMix = preset.whiteMixBase + this.veinHigh * preset.whiteMixHighGain * sparkleScale;
+
+    if (preset.mode === 'heart') {
+      this.updateHeartPresetParticles(
+        activeCount,
+        positions,
+        colors,
+        speedScale,
+        pulseScale,
+        turbulenceScale,
+        sparkleScale,
+        brightnessScale,
+        whiteMix,
+        containmentPadding,
+        containmentDamping
+      );
+    } else if (preset.mode === 'brain') {
+      this.updateBrainPresetParticles(
+        activeCount,
+        positions,
+        colors,
+        speedScale,
+        pulseScale,
+        turbulenceScale,
+        sparkleScale,
+        brightnessScale,
+        whiteMix,
+        containmentPadding,
+        containmentDamping
+      );
+    } else {
+      this.updateNetworkPresetParticles(
+        activeCount,
+        positions,
+        colors,
+        speedScale,
+        pulseScale,
+        turbulenceScale,
+        sparkleScale,
+        brightnessScale,
+        whiteMix,
+        containmentPadding,
+        containmentDamping,
+        preset.mode === 'network'
+      );
+    }
+
+    this.geometry.attributes.position.needsUpdate = true;
+    this.geometry.attributes.color.needsUpdate = true;
+
+    if (this.material) {
+      const size = preset.sizeBase
+        + this.veinBass * preset.sizeBassGain * this.humanTuning.pulse
+        + this.veinMid * preset.sizeMidGain * this.humanTuning.speed;
+      this.material.size = size;
+
+      const opacity = preset.opacityBase
+        + this.veinHigh * preset.opacityGain * this.humanTuning.sparkle
+        + this.veinBass * 0.08 * this.humanTuning.pulse;
+      this.material.opacity = this.clamp01(opacity) * this.settings.particleOpacity;
+    }
+
+    if (this.points) {
+      this.points.rotation.x *= 0.84;
+      this.points.rotation.y *= 0.84;
+      this.points.rotation.z *= 0.84;
+    }
+  }
+
+  updateNetworkPresetParticles(
+    activeCount,
+    positions,
+    colors,
+    speedScale,
+    pulseScale,
+    turbulenceScale,
+    sparkleScale,
+    brightnessScale,
+    whiteMix,
+    containmentPadding,
+    containmentDamping,
+    isNetworkMode
+  ) {
+    const preset = this.humanPreset;
     const pathPositions = this.veinPathPositions;
     const pathTangents = this.veinPathTangents;
     const segmentCount = this.veinPathPointCount - 1;
     const stride = this.veinPathStride;
-
     const bassColor = this.bandColors.bass;
     const midColor = this.bandColors.mid;
     const highColor = this.bandColors.high;
+    const breathing = 0.5 + 0.5 * Math.sin(this.time * (1.1 + this.veinBass * 1.4));
 
-    for (let i = 0; i < this.particleCount; i++) {
+    for (let i = 0; i < activeCount; i++) {
       const i3 = i * 3;
       const group = this.particleGroups[i];
       const pathIndex = this.veinPathIndices[i];
+      const secondaryPathIndex = this.veinPathSecondaryIndices[i];
 
-      let progress = this.veinProgress[i] + this.veinSpeed[i] * flowSpeed * 0.016;
+      let progress = this.veinProgress[i] + this.veinSpeed[i] * speedScale * 0.016;
       progress -= Math.floor(progress);
       this.veinProgress[i] = progress;
 
@@ -1211,13 +1729,41 @@ class ParticleSystem {
       const indexA = pathOffset + segment * 3;
       const indexB = indexA + 3;
 
-      const px = pathPositions[indexA] + (pathPositions[indexB] - pathPositions[indexA]) * localT;
-      const py = pathPositions[indexA + 1] + (pathPositions[indexB + 1] - pathPositions[indexA + 1]) * localT;
-      const pz = pathPositions[indexA + 2] + (pathPositions[indexB + 2] - pathPositions[indexA + 2]) * localT;
+      let px = pathPositions[indexA] + (pathPositions[indexB] - pathPositions[indexA]) * localT;
+      let py = pathPositions[indexA + 1] + (pathPositions[indexB + 1] - pathPositions[indexA + 1]) * localT;
+      let pz = pathPositions[indexA + 2] + (pathPositions[indexB + 2] - pathPositions[indexA + 2]) * localT;
 
       let tx = pathTangents[indexA] + (pathTangents[indexB] - pathTangents[indexA]) * localT;
       let ty = pathTangents[indexA + 1] + (pathTangents[indexB + 1] - pathTangents[indexA + 1]) * localT;
       let tz = pathTangents[indexA + 2] + (pathTangents[indexB + 2] - pathTangents[indexA + 2]) * localT;
+
+      if (isNetworkMode) {
+        const secondaryProgress = progress + 0.17 + (group - 1) * 0.08;
+        const wrappedSecondaryProgress = secondaryProgress - Math.floor(secondaryProgress);
+        const secondaryOffset = secondaryPathIndex * stride;
+        const secondarySampled = wrappedSecondaryProgress * segmentCount;
+        let secondarySegment = secondarySampled | 0;
+        if (secondarySegment >= segmentCount) secondarySegment = segmentCount - 1;
+        const secondaryT = secondarySampled - secondarySegment;
+        const secondaryA = secondaryOffset + secondarySegment * 3;
+        const secondaryB = secondaryA + 3;
+
+        const sx = pathPositions[secondaryA] + (pathPositions[secondaryB] - pathPositions[secondaryA]) * secondaryT;
+        const sy = pathPositions[secondaryA + 1] + (pathPositions[secondaryB + 1] - pathPositions[secondaryA + 1]) * secondaryT;
+        const sz = pathPositions[secondaryA + 2] + (pathPositions[secondaryB + 2] - pathPositions[secondaryA + 2]) * secondaryT;
+        const stx = pathTangents[secondaryA] + (pathTangents[secondaryB] - pathTangents[secondaryA]) * secondaryT;
+        const sty = pathTangents[secondaryA + 1] + (pathTangents[secondaryB + 1] - pathTangents[secondaryA + 1]) * secondaryT;
+        const stz = pathTangents[secondaryA + 2] + (pathTangents[secondaryB + 2] - pathTangents[secondaryA + 2]) * secondaryT;
+
+        const branchBlend = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin(this.time * 0.7 + this.veinPulseOffset[i]));
+        px = px * (1 - branchBlend) + sx * branchBlend;
+        py = py * (1 - branchBlend) + sy * branchBlend;
+        pz = pz * (1 - branchBlend) + sz * branchBlend;
+        tx = tx * (1 - branchBlend) + stx * branchBlend;
+        ty = ty * (1 - branchBlend) + sty * branchBlend;
+        tz = tz * (1 - branchBlend) + stz * branchBlend;
+      }
+
       const tangentLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
       tx /= tangentLen;
       ty /= tangentLen;
@@ -1245,57 +1791,200 @@ class ParticleSystem {
       by /= binormalLen;
       bz /= binormalLen;
 
-      const swirl = this.time * this.veinSwirlRate[i] * (0.8 + this.veinMid * 1.6) + this.particlePhases[i];
-      const jitter = Math.sin(this.time * (7.5 + this.veinMid * 10.0) + this.particlePhases[i] * 2.7)
+      const swirl = this.time * this.veinSwirlRate[i] * (preset.swirlBase + this.veinMid * preset.swirlGainMid)
+        + this.particlePhases[i];
+      const jitter = Math.sin(this.time * (7.2 + this.veinMid * 12.4) + this.veinPulseOffset[i])
         * this.veinJitter[i]
-        * agitation;
-      const radius = this.veinRadius[i] * (1 + pulseStrength * this.veinPulseOffset[i]) + jitter;
+        * turbulenceScale;
+      const vesselPulse = pulseScale * (0.55 + 0.45 * Math.sin(this.time * 2.7 + this.veinPulseOffset[i]));
+      const radius = this.veinRadius[i] * (1 + vesselPulse) + jitter;
+      const axialPulse = pulseScale * (isNetworkMode ? 1.1 : 1.7) * Math.sin(this.time * 2.3 + this.veinPulseOffset[i]);
 
       const cosA = Math.cos(swirl);
       const sinA = Math.sin(swirl);
       const radialX = nx * cosA + bx * sinA;
       const radialY = ny * cosA + by * sinA;
       const radialZ = nz * cosA + bz * sinA;
-      const axialPulse = heartbeatPulse * this.veinPulseOffset[i] * 2.6;
 
       positions[i3] = px + radialX * radius + tx * axialPulse;
       positions[i3 + 1] = py + radialY * radius + ty * axialPulse;
       positions[i3 + 2] = pz + radialZ * radius + tz * axialPulse;
+      this.clampParticleInsideHuman(i3, positions, containmentDamping, containmentPadding);
 
       const baseColor = group === 0 ? bassColor : (group === 1 ? midColor : highColor);
       const bandDrive = group === 0 ? this.veinBass : (group === 1 ? this.veinMid : this.veinHigh);
-      const shimmerWave = 0.5 + 0.5 * Math.sin(this.time * shimmerSpeed + this.particlePhases[i] * 1.9);
-      const brightness = VEIN_WBC_PRESET.baseBrightness
-        + bandDrive * VEIN_WBC_PRESET.bandBrightnessBoost
-        + heartbeatPulse * (group === 0 ? 1.0 : 0.55)
-        + shimmerStrength * shimmerWave * VEIN_WBC_PRESET.highBrightnessBoost;
-      const whiteMix = VEIN_WBC_PRESET.baseWhiteMix + this.veinHigh * VEIN_WBC_PRESET.highWhiteMixBoost;
+      const sparkle = 0.5 + 0.5 * Math.sin(this.time * (11 + this.veinHigh * 20) + this.particlePhases[i] * 1.7);
+
+      let brightness;
+      if (isNetworkMode) {
+        brightness = preset.brightnessBase * brightnessScale
+          + this.veinMid * 0.74
+          + breathing * this.veinBass * 0.6 * this.humanTuning.pulse
+          + sparkle * this.veinHigh * preset.sparkleGainHigh * sparkleScale * 0.4;
+      } else {
+        brightness = preset.brightnessBase * brightnessScale
+          + bandDrive * 1.02
+          + pulseScale * (group === 0 ? 0.42 : 0.18)
+          + sparkle * this.veinHigh * preset.sparkleGainHigh * sparkleScale;
+      }
+
       const colorR = baseColor[0] * (1 - whiteMix) + whiteMix;
       const colorG = baseColor[1] * (1 - whiteMix) + whiteMix;
       const colorB = baseColor[2] * (1 - whiteMix) + whiteMix;
-
       colors[i3] = Math.min(1, colorR * brightness);
       colors[i3 + 1] = Math.min(1, colorG * brightness);
       colors[i3 + 2] = Math.min(1, colorB * brightness);
     }
+  }
 
-    this.geometry.attributes.position.needsUpdate = true;
-    this.geometry.attributes.color.needsUpdate = true;
+  updateHeartPresetParticles(
+    activeCount,
+    positions,
+    colors,
+    speedScale,
+    pulseScale,
+    turbulenceScale,
+    sparkleScale,
+    brightnessScale,
+    whiteMix,
+    containmentPadding,
+    containmentDamping
+  ) {
+    const preset = this.humanPreset;
+    const bassColor = this.bandColors.bass;
+    const midColor = this.bandColors.mid;
+    const highColor = this.bandColors.high;
+    const heartbeat = 0.5 + 0.5 * Math.sin(this.time * (2.8 + this.veinBass * 4.0));
 
-    if (this.material) {
-      this.material.size = VEIN_WBC_PRESET.baseSize
-        + this.veinMid * VEIN_WBC_PRESET.midSizeBoost
-        + this.veinBass * VEIN_WBC_PRESET.bassSizeBoost;
-      const modeOpacity = VEIN_WBC_PRESET.baseOpacity
-        + this.veinHigh * VEIN_WBC_PRESET.highOpacityBoost
-        + heartbeatPulse * 0.15;
-      this.material.opacity = Math.min(1, modeOpacity) * this.settings.particleOpacity;
+    for (let i = 0; i < activeCount; i++) {
+      const i3 = i * 3;
+      const group = this.particleGroups[i];
+
+      const centerX = this.basePositions[i3];
+      const centerY = this.basePositions[i3 + 1];
+      const centerZ = this.basePositions[i3 + 2];
+      const vx = this.velocities[i3];
+      const vy = this.velocities[i3 + 1];
+      const vz = this.velocities[i3 + 2];
+
+      const swirl = this.particlePhases[i]
+        + this.time * this.veinSwirlRate[i] * speedScale;
+      const cosS = Math.cos(swirl);
+      const sinS = Math.sin(swirl);
+      const swirlX = vx * cosS - vz * sinS;
+      const swirlZ = vx * sinS + vz * cosS;
+
+      const pulseWave = 0.55 + 0.45 * Math.sin(this.time * (3.6 + this.veinBass * 4.3) + this.veinPulseOffset[i]);
+      const pulseRadius = this.veinRadius[i] * (2.1 + pulseScale * pulseWave);
+      const turbulence = Math.sin(this.time * (8.8 + this.veinMid * 12.8) + this.veinPulseOffset[i] * 1.7)
+        * this.veinJitter[i]
+        * turbulenceScale;
+      const verticalPulse = pulseScale * 2.2 * heartbeat;
+
+      positions[i3] = centerX + swirlX * (pulseRadius + turbulence);
+      positions[i3 + 1] = centerY + vy * (pulseRadius * 0.8 + turbulence) + verticalPulse;
+      positions[i3 + 2] = centerZ + swirlZ * (pulseRadius + turbulence);
+      this.clampParticleInsideHuman(i3, positions, containmentDamping, containmentPadding);
+
+      const baseColor = group === 0 ? bassColor : (group === 1 ? midColor : highColor);
+      const sparkle = 0.5 + 0.5 * Math.sin(this.time * (16 + this.veinHigh * 24) + this.particlePhases[i] * 2.1);
+      const brightness = preset.brightnessBase * brightnessScale
+        + this.veinBass * 1.55 * this.humanTuning.pulse * heartbeat
+        + this.veinMid * 0.32
+        + sparkle * this.veinHigh * preset.sparkleGainHigh * sparkleScale;
+
+      const colorR = baseColor[0] * (1 - whiteMix) + whiteMix;
+      const colorG = baseColor[1] * (1 - whiteMix) + whiteMix;
+      const colorB = baseColor[2] * (1 - whiteMix) + whiteMix;
+      colors[i3] = Math.min(1, colorR * brightness);
+      colors[i3 + 1] = Math.min(1, colorG * brightness);
+      colors[i3 + 2] = Math.min(1, colorB * brightness);
     }
+  }
 
-    if (this.points) {
-      this.points.rotation.x *= 0.92;
-      this.points.rotation.y *= 0.92;
-      this.points.rotation.z *= 0.92;
+  updateBrainPresetParticles(
+    activeCount,
+    positions,
+    colors,
+    speedScale,
+    pulseScale,
+    turbulenceScale,
+    sparkleScale,
+    brightnessScale,
+    whiteMix,
+    containmentPadding,
+    containmentDamping
+  ) {
+    const preset = this.humanPreset;
+    const bassColor = this.bandColors.bass;
+    const midColor = this.bandColors.mid;
+    const highColor = this.bandColors.high;
+
+    for (let i = 0; i < activeCount; i++) {
+      const i3 = i * 3;
+      const group = this.particleGroups[i];
+
+      const centerX = this.basePositions[i3];
+      const centerY = this.basePositions[i3 + 1];
+      const centerZ = this.basePositions[i3 + 2];
+      const vx = this.velocities[i3];
+      const vy = this.velocities[i3 + 1];
+      const vz = this.velocities[i3 + 2];
+
+      let nx = -vz;
+      let ny = 0;
+      let nz = vx;
+      let normalLen = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      if (normalLen < 0.0001) {
+        nx = 1;
+        ny = 0;
+        nz = 0;
+        normalLen = 1;
+      }
+      nx /= normalLen;
+      ny /= normalLen;
+      nz /= normalLen;
+
+      let bx = vy * nz - vz * ny;
+      let by = vz * nx - vx * nz;
+      let bz = vx * ny - vy * nx;
+      const binormalLen = Math.sqrt(bx * bx + by * by + bz * bz) || 1;
+      bx /= binormalLen;
+      by /= binormalLen;
+      bz /= binormalLen;
+
+      const neuralSpeed = speedScale * this.veinSwirlRate[i] * (preset.swirlBase + this.veinMid * preset.swirlGainMid);
+      const theta = this.particlePhases[i] + this.time * neuralSpeed;
+      const loopRadius = this.veinRadius[i] * (2.0 + this.veinMid * 1.2);
+      const flicker = 0.5 + 0.5 * Math.sin(this.time * (24 + this.veinHigh * 42) + this.veinPulseOffset[i] * 2.4);
+      const turbulence = Math.sin(this.time * (12.5 + this.veinMid * 18.0) + this.veinPulseOffset[i])
+        * this.veinJitter[i]
+        * turbulenceScale
+        * 0.8;
+
+      positions[i3] = centerX
+        + (nx * Math.cos(theta) + bx * Math.sin(theta)) * loopRadius
+        + vx * turbulence;
+      positions[i3 + 1] = centerY
+        + (ny * Math.cos(theta) + by * Math.sin(theta * 1.3)) * loopRadius * 0.72
+        + vy * (pulseScale * 0.9);
+      positions[i3 + 2] = centerZ
+        + (nz * Math.cos(theta) + bz * Math.sin(theta)) * loopRadius
+        + vz * turbulence;
+      this.clampParticleInsideHuman(i3, positions, containmentDamping, containmentPadding);
+
+      const baseColor = group === 0 ? bassColor : (group === 1 ? midColor : highColor);
+      const brightness = preset.brightnessBase * brightnessScale
+        + this.veinHigh * (1.25 + preset.brightnessGainHigh) * sparkleScale * (0.35 + 0.65 * flicker)
+        + this.veinMid * 0.42
+        + this.veinBass * 0.16 * this.humanTuning.pulse;
+
+      const colorR = baseColor[0] * (1 - whiteMix) + whiteMix;
+      const colorG = baseColor[1] * (1 - whiteMix) + whiteMix;
+      const colorB = baseColor[2] * (1 - whiteMix) + whiteMix;
+      colors[i3] = Math.min(1, colorR * brightness);
+      colors[i3 + 1] = Math.min(1, colorG * brightness);
+      colors[i3 + 2] = Math.min(1, colorB * brightness);
     }
   }
 
@@ -1319,6 +2008,10 @@ class ParticleSystem {
       this.time += 0.016;
       this.updateVeinsWbcParticles(bass, mid, high, positions, colors);
       return;
+    }
+
+    if (this.geometry && this.geometry.drawRange.count !== this.particleCount) {
+      this.geometry.setDrawRange(0, this.particleCount);
     }
     
     // Extract advanced metrics (with defaults for backwards compatibility)
@@ -1799,17 +2492,13 @@ class ParticleSystem {
           connectionPositions[lineOffset + 4] = positions[i3_2 + 1];
           connectionPositions[lineOffset + 5] = positions[i3_2 + 2];
           
-          // Blend colors of connected particles
-          const c1 = [colors[i3_1], colors[i3_1 + 1], colors[i3_1 + 2]];
-          const c2 = [colors[i3_2], colors[i3_2 + 1], colors[i3_2 + 2]];
+          connectionColors[lineOffset] = colors[i3_1] * alpha;
+          connectionColors[lineOffset + 1] = colors[i3_1 + 1] * alpha;
+          connectionColors[lineOffset + 2] = colors[i3_1 + 2] * alpha;
           
-          connectionColors[lineOffset] = c1[0] * alpha;
-          connectionColors[lineOffset + 1] = c1[1] * alpha;
-          connectionColors[lineOffset + 2] = c1[2] * alpha;
-          
-          connectionColors[lineOffset + 3] = c2[0] * alpha;
-          connectionColors[lineOffset + 4] = c2[1] * alpha;
-          connectionColors[lineOffset + 5] = c2[2] * alpha;
+          connectionColors[lineOffset + 3] = colors[i3_2] * alpha;
+          connectionColors[lineOffset + 4] = colors[i3_2 + 1] * alpha;
+          connectionColors[lineOffset + 5] = colors[i3_2 + 2] * alpha;
           
           lineIndex++;
         }
@@ -1968,9 +2657,11 @@ class ParticleSystem {
 
     if (this.humanLayerMode) {
       const colors = this.geometry.attributes.color.array;
-      const whiteMix = VEIN_WBC_PRESET.baseWhiteMix + this.veinHigh * VEIN_WBC_PRESET.highWhiteMixBoost;
+      const preset = this.humanPreset || HUMAN_PARTICLE_PRESETS[HUMAN_DEFAULT_PRESET_ID];
+      const whiteMix = preset.whiteMixBase + this.veinHigh * preset.whiteMixHighGain * this.humanTuning.sparkle;
+      const count = this.humanActiveCount;
 
-      for (let i = 0; i < this.particleCount; i++) {
+      for (let i = 0; i < count; i++) {
         const i3 = i * 3;
         const group = this.particleGroups[i];
         const baseColor = group === 0
@@ -1980,6 +2671,10 @@ class ParticleSystem {
         colors[i3] = baseColor[0] * (1 - whiteMix) + whiteMix;
         colors[i3 + 1] = baseColor[1] * (1 - whiteMix) + whiteMix;
         colors[i3 + 2] = baseColor[2] * (1 - whiteMix) + whiteMix;
+      }
+
+      for (let i = count * 3; i < colors.length; i++) {
+        colors[i] = 0;
       }
 
       this.geometry.attributes.color.needsUpdate = true;
@@ -2031,12 +2726,14 @@ class ParticleSystem {
     this.particleGroups = new Uint8Array(count);
     this.particlePhases = new Float32Array(count);
     this.veinPathIndices = new Uint16Array(count);
+    this.veinPathSecondaryIndices = new Uint16Array(count);
     this.veinProgress = new Float32Array(count);
     this.veinSpeed = new Float32Array(count);
     this.veinRadius = new Float32Array(count);
     this.veinSwirlRate = new Float32Array(count);
     this.veinPulseOffset = new Float32Array(count);
     this.veinJitter = new Float32Array(count);
+    this.updateHumanActiveCount();
 
     this.createParticles();
     
@@ -2091,12 +2788,16 @@ class ParticleSystem {
     this.veinPathPositions = null;
     this.veinPathTangents = null;
     this.veinPathIndices = null;
+    this.veinPathSecondaryIndices = null;
     this.veinProgress = null;
     this.veinSpeed = null;
     this.veinRadius = null;
     this.veinSwirlRate = null;
     this.veinPulseOffset = null;
     this.veinJitter = null;
+    this.bodyCapsules = null;
+    this.bodyCapsuleLookup = null;
+    this.activeContainmentCapsules = null;
   }
 }
 

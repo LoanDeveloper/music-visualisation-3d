@@ -276,50 +276,53 @@ class HumanLayer {
           bodyFound = true;
         }
         
+        const baseOpacity = meshName === 'Body'
+          ? 0.95
+          : (meshName === 'Heart' ? 0.58 : (meshName === 'Brain' ? 0.46 : 0.40));
+
         // Create EdgesGeometry from mesh
         const edgesGeometry = new THREE.EdgesGeometry(
           mesh.geometry,
           EDGE_THRESHOLD_ANGLE
         );
         
-        // Create material (white lines, matrix vibe)
-        // Higher base opacity for better visibility
+        // Keep body contour dominant and inner layers softer for readability.
         const material = new THREE.LineBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.7,
-          depthTest: true,
+          opacity: baseOpacity,
+          depthTest: meshName !== 'Body',
           depthWrite: false,
         });
         
         // Create LineSegments
         const lineSegments = new THREE.LineSegments(edgesGeometry, material);
         lineSegments.name = `${meshName}-lines`;
-        lineSegments.renderOrder = 3;
+        lineSegments.renderOrder = meshName === 'Body' ? 22 : 14;
         let bodyOutlineSegments = null;
 
         if (meshName === 'Body') {
           // Keep silhouette readable above particles at all times.
           material.depthTest = false;
-          material.opacity = 0.9;
-          lineSegments.renderOrder = 20;
+          material.opacity = 0.95;
+          lineSegments.renderOrder = 22;
 
           // Reinforced outer silhouette for clean readability.
           const outlineMaterial = new THREE.LineBasicMaterial({
             color: 0xffffff,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.62,
             depthTest: false,
             depthWrite: false,
           });
           const outlineGeometry = edgesGeometry.clone();
           bodyOutlineSegments = new THREE.LineSegments(outlineGeometry, outlineMaterial);
           bodyOutlineSegments.name = `${meshName}-outline`;
-          bodyOutlineSegments.renderOrder = 19;
+          bodyOutlineSegments.renderOrder = 21;
           bodyOutlineSegments.position.copy(mesh.position);
           bodyOutlineSegments.rotation.copy(mesh.rotation);
           bodyOutlineSegments.scale.copy(mesh.scale);
-          bodyOutlineSegments.scale.multiplyScalar(1.015);
+          bodyOutlineSegments.scale.multiplyScalar(1.02);
           this.materials[poseId].bodyoutline = outlineMaterial;
           this.layerAvailable[poseId].bodyoutline = true;
         }

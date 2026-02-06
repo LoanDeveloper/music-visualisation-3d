@@ -7,13 +7,19 @@ import AudioAnalyzer from '../core/AudioAnalyzer';
  * @param {React.RefObject} audioRef - Reference to audio element
  * @param {React.RefObject} sceneRef - Reference to ThreeScene instance
  * @param {Object} visualSettings - Visualization settings
+ * @param {(bass: number, mid: number, high: number) => void} onBandsUpdate - Optional low-rate callback for UI overlays
  * @returns {Object} Audio analyzer methods
  */
-export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
+export const useAudioAnalysis = (audioRef, sceneRef, visualSettings, onBandsUpdate) => {
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const isRunningRef = useRef(false);
   const settingsRef = useRef(visualSettings);
+  const onBandsUpdateRef = useRef(onBandsUpdate);
+
+  useEffect(() => {
+    onBandsUpdateRef.current = onBandsUpdate;
+  }, [onBandsUpdate]);
 
   // Keep settings ref updated
   useEffect(() => {
@@ -162,6 +168,9 @@ export const useAudioAnalysis = (audioRef, sceneRef, visualSettings) => {
       // Update scene with frequency data - read ref directly each time
       if (sceneRef.current) {
         sceneRef.current.updateFrequencyBands(adjustedBands);
+      }
+      if (onBandsUpdateRef.current) {
+        onBandsUpdateRef.current(adjustedBands.bass, adjustedBands.mid, adjustedBands.high);
       }
 
       // Continue loop

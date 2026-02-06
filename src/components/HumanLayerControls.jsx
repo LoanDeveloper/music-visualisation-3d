@@ -1,5 +1,6 @@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -24,6 +25,8 @@ const HumanLayerControls = ({
   onPoseChange,
   isLoading,
   hasError,
+  particleTuning,
+  onParticleTuningChange,
 }) => {
   const presets = getHumanPresetsForUI();
   const poses = Object.values(POSES);
@@ -35,7 +38,7 @@ const HumanLayerControls = ({
     { 
       x: 16,
       y: typeof window !== 'undefined'
-        ? (isMobile ? window.innerHeight - 280 : window.innerHeight - 240)
+        ? (isMobile ? window.innerHeight - 460 : window.innerHeight - 430)
         : 500,
     }
   );
@@ -43,21 +46,29 @@ const HumanLayerControls = ({
   // Get icon for preset
   const getPresetIcon = (presetId) => {
     switch (presetId) {
-      case 'BRAIN_FOCUS':
+      case 'cerveau-focus':
         return <Brain className="h-3 w-3" />;
-      case 'HEART_CORE':
+      case 'coeur-core':
         return <Heart className="h-3 w-3" />;
-      case 'VEINS_FLOW':
+      case 'veines-flow':
         return <Activity className="h-3 w-3" />;
       default:
         return <User className="h-3 w-3" />;
     }
   };
 
+  const updateTuning = (key, value) => {
+    if (!onParticleTuningChange || !particleTuning) return;
+    onParticleTuningChange({
+      ...particleTuning,
+      [key]: value,
+    });
+  };
+
   return (
     <div 
       ref={setRef}
-      className={`w-[200px] sm:w-56 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
+      className={`w-[220px] sm:w-64 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl ${isDragging ? 'shadow-2xl scale-[1.01]' : ''}`}
       style={{ ...containerStyle, zIndex: isDragging ? 1000 : 50 }}
     >
       {/* Drag Handle */}
@@ -137,6 +148,100 @@ const HumanLayerControls = ({
           <div className="text-[10px] text-foreground/40 italic">
             {presets.find((p) => p.id === preset)?.description || ''}
           </div>
+
+          {particleTuning && (
+            <div className="space-y-2.5 pt-2 border-t border-white/10">
+              <Label className="text-[10px] text-foreground/60 uppercase tracking-wider">
+                Particle Tuning
+              </Label>
+
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/60">
+                    <span>Densite</span>
+                    <span className="font-mono">{particleTuning.density.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[particleTuning.density]}
+                    min={0.45}
+                    max={1.45}
+                    step={0.01}
+                    onValueChange={(values) => updateTuning('density', values[0])}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/60">
+                    <span>Vitesse</span>
+                    <span className="font-mono">{particleTuning.speed.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[particleTuning.speed]}
+                    min={0.4}
+                    max={1.8}
+                    step={0.01}
+                    onValueChange={(values) => updateTuning('speed', values[0])}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/60">
+                    <span>Pulse</span>
+                    <span className="font-mono">{particleTuning.pulse.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[particleTuning.pulse]}
+                    min={0.4}
+                    max={1.9}
+                    step={0.01}
+                    onValueChange={(values) => updateTuning('pulse', values[0])}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/60">
+                    <span>Sparkle</span>
+                    <span className="font-mono">{particleTuning.sparkle.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[particleTuning.sparkle]}
+                    min={0.3}
+                    max={2.0}
+                    step={0.01}
+                    onValueChange={(values) => updateTuning('sparkle', values[0])}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/60">
+                    <span>Luminosite</span>
+                    <span className="font-mono">{particleTuning.brightness.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[particleTuning.brightness]}
+                    min={0.4}
+                    max={1.9}
+                    step={0.01}
+                    onValueChange={(values) => updateTuning('brightness', values[0])}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/60">
+                    <span>Turbulence</span>
+                    <span className="font-mono">{particleTuning.turbulence.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[particleTuning.turbulence]}
+                    min={0.35}
+                    max={1.9}
+                    step={0.01}
+                    onValueChange={(values) => updateTuning('turbulence', values[0])}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
